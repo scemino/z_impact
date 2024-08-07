@@ -10,6 +10,8 @@ const sgl = sokol.gl;
 
 const RENDER_TEXTURES_MAX = 1024;
 
+pub const TextureMark = struct { index: usize = 0 };
+
 const Vertex = struct {
     pos: Vec2,
     uv: Vec2,
@@ -23,7 +25,7 @@ const Quad = struct {
 var sampler: sg.Sampler = undefined;
 
 pub const Texture = struct {
-    index: u32,
+    index: usize,
 
     pub fn init(size: Vec2i, pixels: []const Rgba) Texture {
         const img = sg.makeImage(.{
@@ -53,7 +55,7 @@ pub const Texture = struct {
     }
 };
 
-var textures_len: u32 = 0;
+var textures_len: usize = 0;
 const InternalTexture = struct {
     size: Vec2i,
     img: sg.Image,
@@ -71,7 +73,7 @@ pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
             v.pos.x,
             v.pos.y,
             v.uv.x / @as(f32, @floatFromInt(t.size.x)),
-            1.0 - v.uv.y / @as(f32, @floatFromInt(t.size.y)),
+            v.uv.y / @as(f32, @floatFromInt(t.size.y)),
             v.color.components[0],
             v.color.components[1],
             v.color.components[2],
@@ -79,4 +81,13 @@ pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
         );
     }
     sgl.end();
+}
+
+pub fn texturesMark() TextureMark {
+    return .{ .index = textures_len };
+}
+
+pub fn texturesReset(mark: TextureMark) void {
+    assert(mark.index < textures_len);
+    textures_len = mark.index;
 }

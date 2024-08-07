@@ -5,12 +5,30 @@ const types = @import("types.zig");
 const drawQuad = @import("texture.zig").drawQuad;
 const Texture = @import("texture.zig").Texture;
 const Vec2 = types.Vec2;
+const Vec2i = types.Vec2i;
 const sokol = @import("sokol");
+const sapp = sokol.app;
 const sgl = sokol.gl;
 
-var logical_size: Vec2 = types.vec2(0, 0);
+const RENDER_ATLAS_SIZE = 64;
+const RENDER_ATLAS_GRID = 32;
+const RENDER_ATLAS_SIZE_PX = (RENDER_ATLAS_SIZE * RENDER_ATLAS_GRID);
+
+var logical_size: Vec2i = types.vec2i(1280, 720);
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
+
+pub fn framePrepare() void {
+    const dw = sapp.width();
+    const dh = sapp.height();
+
+    sgl.viewport(0, 0, dw, dh, true);
+    sgl.defaults();
+    sgl.matrixModeProjection();
+    sgl.ortho(0, 240.0, 160.0, 0.0, -1, 1);
+    sgl.matrixModeModelview();
+    sgl.loadIdentity();
+}
 
 pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
     // if (pos.x > logical_size.x or pos.y > logical_size.y or
@@ -40,4 +58,8 @@ pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_
     // }
 
     drawQuad(q, texture_handle);
+}
+
+pub fn renderSize() Vec2i {
+    return logical_size;
 }

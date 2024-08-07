@@ -10,13 +10,49 @@ const Vec2 = @import("types.zig").Vec2;
 const shaders = @import("shaders.zig");
 const types = @import("types.zig");
 const Rgba = @import("types.zig").Rgba;
-const drawQuad = @import("texture.zig").drawQuad;
+const alloc = @import("allocator.zig");
+const img = @import("image.zig");
+const texture = @import("texture.zig");
+const platform = @import("platform.zig");
+
+// The maximum difference in seconds from one frame to the next. If the
+// difference  is larger than this, the game will slow down instead of having
+// imprecise large time steps.
+const ENGINE_MAX_TICK = 0.1;
+
+// Every scene in your game must provide a scene_t that specifies it's entry
+// functions.
+const Scene = struct {
+    // Called once when the scene is set. Use it to load resources and
+    // instaiate your initial entities
+    init: *const fn () void,
+
+    // Called once per frame. Uss this to update logic specific to your game.
+    // If you use this function, you probably want to call scene_base_update()
+    // in it somewhere.
+    update: *const fn () void,
+
+    // Called once per frame. Use this to e.g. draw a background or hud.
+    // If you use this function, you probably want to call scene_base_draw()
+    // in it somewhere.
+    draw: *const fn () void,
+
+    // Called once before the next scene is set or the game ends
+    cleanup: *const fn () void,
+};
+
+// The engine is the main wrapper around your. For every frame, it will update
+// your scene, update all entities and draw the whole frame.
+
+// The engine takes care of timekeeping, a number background maps, a collision
+// map some more global state. There's only one engine_t instance in high_impact
+// and it's globally available at `engine`
 
 /// The real time in seconds since program start
 var time_real: f64 = 0.0;
 
 /// The game time in seconds since scene start
-var time: f64 = 0.0;
+pub var time: f64 = 0.0;
 
 // A global multiplier for how fast game time should advance. Default: 1.0
 var time_scale: f64 = 1.0;
@@ -59,9 +95,16 @@ var pass_action: sg.PassAction = .{};
 // 	float total;
 // } perf;
 
+var scene_next: *Scene = null;
+var init_textures_mark: texture.TextureMark = .{};
+var init_images_mark: img.ImageMark = .{};
+var init_bump_mark: alloc.BumpMark = .{};
+// var init_sounds_mark: sound_mark_t = {};
+var is_running = false;
+
 // pub fn init(platform: anytype) void {
 pub fn init() void {
-    // time_real = platform.now();
+    time_real = platform.now();
     // render_init(platform.screen_size());
     renderInit();
     // sound_init(platform.samplerate());
@@ -70,18 +113,38 @@ pub fn init() void {
     // entities_init();
     // main_init();
 
-    // init_bump_mark = bump_mark();
-    // init_images_mark = images_mark();
+    init_bump_mark = alloc.bumpMark();
+    init_images_mark = img.imagesMark();
     // init_sounds_mark = sound_mark();
-    // init_textures_mark = textures_mark();
+    init_textures_mark = texture.texturesMark();
 }
 
 pub fn update() void {
     draw();
+    const time_real_now = platform.now();
+    const real_delta = time_real_now - time_real;
+    time_real = time_real_now;
+
+    tick = @min(real_delta * time_scale, ENGINE_MAX_TICK);
+    // std.log.info("tick: {}", .{tick});
+    time += tick;
 }
 
 pub fn cleanup() void {
+    // entities_cleanup();
+    // main_cleanup();
+    // input_cleanup();
+    // sound_cleanup();
     renderCleanup();
+}
+
+// Makes the scene_the current scene. This calls scene->cleanup() on the old
+// scene and scene->init() on the new one. The actual swap of scenes happens
+// at the beginning of the next frame, so it's ok to call engine_set_scene()
+// from the middle of a frame.
+// Your main_init() function must call engine_set_scene() to set first scene.
+pub fn setScene(scene: *Scene) void {
+    scene_next = scene;
 }
 
 fn renderCleanup() void {
@@ -101,20 +164,8 @@ fn renderInit() void {
     // default pass action
     pass_action.colors[0] = .{
         .load_action = sg.LoadAction.CLEAR,
-        .clear_value = .{ .r = 0.8, .g = 0.8, .b = 0.8, .a = 1.0 },
+        .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
     };
-}
-
-pub fn framePrepare() void {
-    const dw = sapp.width();
-    const dh = sapp.height();
-
-    sgl.viewport(0, 0, dw, dh, true);
-    sgl.defaults();
-    sgl.matrixModeProjection();
-    sgl.ortho(0, 240.0, 0.0, 160.0, -1, 1);
-    sgl.matrixModeModelview();
-    sgl.loadIdentity();
 }
 
 fn draw() void {

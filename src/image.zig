@@ -7,6 +7,7 @@ const Vec2i = types.Vec2i;
 const Texture = @import("texture.zig").Texture;
 const qoi = @import("qoi.zig");
 const BumpAllocator = @import("allocator.zig").BumpAllocator;
+const TempAllocator = @import("allocator.zig").TempAllocator;
 const bumpAlloc = @import("allocator.zig").bumpAlloc;
 const render = @import("render.zig");
 
@@ -14,6 +15,8 @@ const IMAGE_MAX_SOURCES = 1024;
 var image_paths: [IMAGE_MAX_SOURCES][]u8 = undefined;
 var images: [IMAGE_MAX_SOURCES]Image = undefined;
 var images_len: usize = 0;
+
+pub const ImageMark = struct { index: usize = 0 };
 
 pub const Image = struct {
     size: Vec2i,
@@ -37,15 +40,15 @@ pub const Image = struct {
         var file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
 
-        var bump_alloc = BumpAllocator{};
+        var temp_alloc = TempAllocator{};
         const reader = file.reader();
         const file_size = (try file.stat()).size;
-        const buf = try bump_alloc.allocator().alloc(u8, file_size);
+        const buf = try temp_alloc.allocator().alloc(u8, file_size);
         _ = try reader.readAll(buf);
         // TODO defer temp.free(data);
 
-        var image = try qoi.decodeBuffer(bump_alloc.allocator(), buf);
-        defer image.deinit(bump_alloc.allocator());
+        var image = try qoi.decodeBuffer(temp_alloc.allocator(), buf);
+        defer image.deinit(temp_alloc.allocator());
 
         const size = Vec2i{ .x = @intCast(image.width), .y = @intCast(image.height) };
         const image_pixels = std.mem.sliceAsBytes(image.pixels);
@@ -61,4 +64,32 @@ pub const Image = struct {
         const size = types.fromVec2i(self.size);
         render.draw(pos, size, self.texture, .{ .x = 0, .y = 0 }, size, types.white());
     }
+
+    pub fn drawTileEx(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2, flip_x: bool, flip_y: bool, color: Rgba) void {
+        var src_pos = types.vec2(
+            @floatFromInt(@mod(tile * tile_size.x, self.size.x)),
+            @as(f32, @floatFromInt(@divFloor(tile * tile_size.x, self.size.x))) * @as(f32, @floatFromInt(tile_size.y)),
+        );
+        var src_size = types.fromVec2i(types.vec2i(tile_size.x, tile_size.y));
+        const dst_size = src_size;
+
+        if (flip_x) {
+            src_pos.x = src_pos.x + @as(f32, @floatFromInt(tile_size.x));
+            src_size.x = @as(f32, @floatFromInt(-tile_size.x));
+        }
+        if (flip_y) {
+            src_pos.y = src_pos.y + @as(f32, @floatFromInt(tile_size.y));
+            src_size.y = @as(f32, @floatFromInt(-tile_size.y));
+        }
+        std.log.info("tile: {}, src_pos: {}", .{ tile, src_pos });
+        render.draw(dst_pos, dst_size, self.texture, src_pos, src_size, color);
+    }
 };
+
+pub fn imagesMark() ImageMark {
+    return .{ .index = images_len };
+}
+
+pub fn imagesReset(mark: ImageMark) void {
+    images_len = mark.index;
+}

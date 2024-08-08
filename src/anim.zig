@@ -43,20 +43,15 @@ pub const Anim = struct {
         const tile = def.sequence[frame] + self.tile_offset;
         std.log.info("frame: {}, diff: {}, seq: {}", .{ frame, diff, def.sequence[frame] });
 
-        // if (self.rotation == 0)
-        {
+        if (self.rotation == 0) {
             def.sheet.drawTileEx(tile, def.frame_size, pos, self.flip_x, self.flip_y, self.color);
+        } else {
+            render.push();
+            render.translate(Vec2.add(pos, def.pivot));
+            render.rotate(self.rotation);
+            def.sheet.drawTileEx(tile, def.frame_size, Vec2.mulf(def.pivot, -1.0), self.flip_x, self.flip_y, self.color);
+            render.pop();
         }
-        // else {
-        // 	render_push();
-        // 	render_translate(vec2_add(pos, def.pivot));
-        // 	render_rotate(self.rotation);
-        // 	image_draw_tile_ex(
-        // 		def.sheet, tile, def.frame_size, vec2_mulf(def.pivot, -1),
-        // 		self.flip_x, self.flip_y, self.color
-        // 	);
-        // 	render_pop();
-        // }
     }
 };
 

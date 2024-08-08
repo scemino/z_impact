@@ -60,6 +60,26 @@ pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_
     drawQuad(q, texture_handle);
 }
 
+pub fn push() void {
+    sgl.pushMatrix();
+}
+
+pub fn pop() void {
+    sgl.popMatrix();
+}
+
+pub fn translate(t: Vec2) void {
+    sgl.translate(t.x, t.y, 0.0);
+}
+
+pub fn scale(t: Vec2) void {
+    sgl.scale(t.x, t.y, 1.0);
+}
+
+pub fn rotate(rotation: f32) void {
+    sgl.rotate(rotation, 0.0, 0.0, 1.0);
+}
+
 pub fn renderSize() Vec2i {
     return logical_size;
 }

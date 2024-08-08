@@ -65,6 +65,10 @@ pub const Image = struct {
         render.draw(pos, size, self.texture, .{ .x = 0, .y = 0 }, size, types.white());
     }
 
+    pub fn drawTile(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2) void {
+        self.drawTileEx(tile, tile_size, dst_pos, false, false, types.white());
+    }
+
     pub fn drawTileEx(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2, flip_x: bool, flip_y: bool, color: Rgba) void {
         var src_pos = types.vec2(
             @floatFromInt(@mod(tile * tile_size.x, self.size.x)),

@@ -3,11 +3,43 @@ const std = @import("std");
 pub const Vec2 = struct {
     x: f32,
     y: f32,
+
+    pub fn initAngle(a: f32) Vec2 {
+        return .{ .x = std.math.cos(a), .y = std.math.sin(a) };
+    }
+
+    pub fn add(a: Vec2, b: Vec2) Vec2 {
+        return .{ .x = a.x + b.x, .y = a.y + b.y };
+    }
+
+    pub fn sub(a: Vec2, b: Vec2) Vec2 {
+        return .{ .x = a.x - b.x, .y = a.y - b.y };
+    }
+
+    pub fn mul(a: Vec2, b: Vec2) Vec2 {
+        return .{ .x = a.x * b.x, .y = a.y * b.y };
+    }
+
+    pub fn mulf(a: Vec2, f: f32) Vec2 {
+        return .{ .x = a.x * f, .y = a.y * f };
+    }
+
+    pub fn toAngle(a: Vec2) f32 {
+        return std.math.atan2(a.y, a.x);
+    }
+
+    pub fn divf(a: Vec2, f: f32) Vec2 {
+        return vec2(a.x / f, a.y / f);
+    }
 };
 
 pub const Vec2i = struct {
     x: i32,
     y: i32,
+
+    pub fn divi(a: Vec2i, f: i32) Vec2i {
+        return vec2i(@divFloor(a.x, f), @divFloor(a.y, f));
+    }
 };
 
 pub fn vec2(x: f32, y: f32) Vec2 {
@@ -20,6 +52,10 @@ pub fn vec2i(x: i32, y: i32) Vec2i {
 
 pub fn fromVec2i(v: Vec2i) Vec2 {
     return .{ .x = @floatFromInt(v.x), .y = @floatFromInt(v.y) };
+}
+
+pub fn fromVec2(v: Vec2) Vec2i {
+    return .{ .x = @intFromFloat(v.x), .y = @intFromFloat(v.y) };
 }
 
 pub const Mat3 = struct { a: f32, b: f32, c: f32, d: f32, tx: f32, ty: f32 };

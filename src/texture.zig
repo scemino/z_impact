@@ -35,8 +35,8 @@ pub const Texture = struct {
             .usage = .STREAM,
         });
         sampler = sg.makeSampler(.{
-            .min_filter = .LINEAR,
-            .mag_filter = .LINEAR,
+            .min_filter = .NEAREST,
+            .mag_filter = .NEAREST,
             .wrap_u = .CLAMP_TO_EDGE,
             .wrap_v = .CLAMP_TO_EDGE,
         });

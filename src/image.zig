@@ -85,7 +85,7 @@ pub const Image = struct {
             src_pos.y = src_pos.y + @as(f32, @floatFromInt(tile_size.y));
             src_size.y = @as(f32, @floatFromInt(-tile_size.y));
         }
-        std.log.info("tile: {}, src_pos: {}", .{ tile, src_pos });
+        // std.log.info("tile: {}, src_pos: {}", .{ tile, src_pos });
         render.draw(dst_pos, dst_size, self.texture, src_pos, src_size, color);
     }
 };

@@ -1,30 +1,32 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const sapp = sokol.app;
-const engine = @import("engine.zig");
+const Engine = @import("engine.zig").Engine;
 const render = @import("render.zig");
-const img = @import("image.zig");
-const a = @import("anim.zig");
-const Image = img.Image;
 const types = @import("types.zig");
-const vec2i = types.vec2i;
 const vec2 = types.vec2;
 const stm = @import("sokol").time;
-const scale = @import("utils.zig").scale;
 const Map = @import("map.zig").Map;
-const clamp = std.math.clamp;
+const entity = @import("entity.zig");
+const title = @import("scenes/title.zig");
+const game = @import("game.zig");
+const EntityVtab = @import("entity.zig").EntityVtab;
 
-var img_biolab: Image = undefined;
-var blob_sheet: Image = undefined;
-var start_time: u64 = 0;
-var blob_anim: a.Anim = undefined;
-var anim_idle: a.AnimDef = undefined;
 var map: Map = undefined;
+var blob_entity: game.Entity = undefined;
+var player_entity: game.Entity = undefined;
+
+const engine = Engine(game.Entity);
+var vtabs: [@typeInfo(game.EntityKind).Enum.fields.len]EntityVtab(game.Entity) = undefined;
 
 export fn init() void {
     stm.setup();
-    start_time = stm.now();
-    engine.init();
+
+    vtabs = [_]EntityVtab(game.Entity){
+        game.blob.vtab,
+        game.player.vtab,
+    };
+    engine.init(&vtabs);
 
     map = Map.initFromJson(
         \\{
@@ -62,23 +64,23 @@ export fn init() void {
         \\			]
         \\		}
     );
-    img_biolab = Image.init("assets/title-biolab.qoi") catch @panic("failed to init image");
-    blob_sheet = Image.init("assets/sprites/blob.qoi") catch @panic("failed to init image");
-    anim_idle = a.animDef(&blob_sheet, vec2i(16, 16), 0.5, &[_]u16{ 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, true);
-    blob_anim = a.anim(&anim_idle);
 
     map.setAnim(80, 0.13, &[_]u16{ 80, 81, 82, 83, 84, 85, 86, 87 });
     map.setAnim(81, 0.17, &[_]u16{ 84, 83, 82, 81, 80, 87, 86, 85 });
     map.setAnim(88, 0.23, &[_]u16{ 88, 89, 90, 91, 92, 93, 94, 95 });
     map.setAnim(89, 0.19, &[_]u16{ 95, 94, 93, 92, 91, 90, 89, 88 });
+
+    blob_entity = engine.spawn(.blob, vec2(0, 0));
+    player_entity = engine.spawn(.player, vec2(0, 0));
+    title.scene_title.init.?();
 }
 
 export fn update() void {
-    const d: f32 = @as(f32, @floatCast(stm.sec(stm.since(start_time)))) - 1.0;
     render.framePrepare();
-    img_biolab.draw(types.vec2(scale(clamp(d * d * -d, 0.0, 1.0), 1.0, 0, -160, 44), 26));
-    blob_anim.draw(vec2(16, 16));
-    map.draw(vec2(0, 0));
+    title.scene_title.update.?();
+    title.scene_title.draw.?();
+    engine.drawEntity(&blob_entity, vec2(100, 0));
+    engine.drawEntity(&player_entity, vec2(0, 100));
     engine.update();
 }
 

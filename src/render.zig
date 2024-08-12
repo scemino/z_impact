@@ -5,6 +5,7 @@ const types = @import("types.zig");
 const drawQuad = @import("texture.zig").drawQuad;
 const Texture = @import("texture.zig").Texture;
 const Vec2 = types.Vec2;
+const vec2 = types.vec2;
 const Vec2i = types.Vec2i;
 const sokol = @import("sokol");
 const sapp = sokol.app;
@@ -17,6 +18,7 @@ const RENDER_ATLAS_SIZE_PX = (RENDER_ATLAS_SIZE * RENDER_ATLAS_GRID);
 var logical_size: Vec2i = types.vec2i(1280, 720);
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
+var inv_screen_scale: f32 = 1.0;
 
 pub fn framePrepare() void {
     const dw = sapp.width();
@@ -28,6 +30,10 @@ pub fn framePrepare() void {
     sgl.ortho(0, 240.0, 160.0, 0.0, -1, 1);
     sgl.matrixModeModelview();
     sgl.loadIdentity();
+}
+
+pub fn frameEnd() void {
+    // TODO:
 }
 
 pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
@@ -82,4 +88,9 @@ pub fn rotate(rotation: f32) void {
 
 pub fn renderSize() Vec2i {
     return logical_size;
+}
+
+pub fn snapPx(pos: Vec2) Vec2 {
+    const sp = pos.mulf(screen_scale);
+    return vec2(@round(sp.x), @round(sp.y)).mulf(inv_screen_scale);
 }

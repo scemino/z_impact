@@ -88,6 +88,6 @@ pub fn texturesMark() TextureMark {
 }
 
 pub fn texturesReset(mark: TextureMark) void {
-    assert(mark.index < textures_len);
+    assert(mark.index <= textures_len);
     textures_len = mark.index;
 }

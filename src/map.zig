@@ -70,10 +70,10 @@ pub const Map = struct {
     /// 		[3,2,1,0],
     /// 	]
     /// }
-    pub fn initFromJson(str: []const u8) Map {
+    pub fn initFromJson(root: Value) Map {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const parsed = std.json.parseFromSlice(Value, gpa.allocator(), str, .{}) catch @panic("error when parsing map");
-        const root = parsed.value;
+        // const parsed = std.json.parseFromSlice(Value, gpa.allocator(), str, .{}) catch @panic("error when parsing map");
+        // const root = parsed.value;
 
         // TODO: assert(!engine.isRunning());
 
@@ -97,6 +97,7 @@ pub const Map = struct {
                 std.log.info("loaded map {} {} {s}\n", .{ map.size.x, map.size.y, tileset_name });
                 map.tileset = img.Image.init(tileset_name) catch @panic("error when parsing map");
             },
+            .null => {},
             else => unreachable,
         }
 

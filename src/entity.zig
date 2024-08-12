@@ -1,6 +1,9 @@
+const std = @import("std");
 const Vec2 = @import("types.zig").Vec2;
 const Anim = @import("anim.zig").Anim;
+const Trace = @import("trace.zig");
 const vec2 = @import("types.zig").vec2;
+const ObjectMap = std.json.ObjectMap;
 
 /// Entity refs can be used to safely keep track of entities. Refs can be
 /// resolved to an actual entity_t with entity_by_ref(). Refs will resolve to
@@ -20,7 +23,9 @@ const EntityList = struct {
 };
 
 // entity_ref_none will always resolve to NULL
-const entity_ref_none = EntityRef{ .id = 0, .index = 0 };
+pub fn entityRefNone() EntityRef {
+    return .{ .id = 0, .index = 0 };
+}
 
 /// Entities can be members of one or more groups (through ent->group). This can
 /// be used in conjunction with ent->check_against to indicate for which pairs
@@ -32,15 +37,15 @@ const entity_ref_none = EntityRef{ .id = 0, .index = 0 };
 /// The function
 ///   entity_touch(ent_b, ent_a)
 /// will be called when those two entities overlap.
-const EntityGroup = enum {
-    ENTITY_GROUP_NONE,
-    ENTITY_GROUP_PLAYER,
-    ENTITY_GROUP_NPC,
-    ENTITY_GROUP_ENEMY,
-    ENTITY_GROUP_ITEM,
-    ENTITY_GROUP_PROJECTILE,
-    ENTITY_GROUP_PICKUP,
-    ENTITY_GROUP_BREAKABLE,
+pub const EntityGroup = enum(u8) {
+    ENTITY_GROUP_NONE = 0,
+    ENTITY_GROUP_PLAYER = (1 << 0),
+    ENTITY_GROUP_NPC = (1 << 1),
+    ENTITY_GROUP_ENEMY = (1 << 2),
+    ENTITY_GROUP_ITEM = (1 << 3),
+    ENTITY_GROUP_PROJECTILE = (1 << 4),
+    ENTITY_GROUP_PICKUP = (1 << 5),
+    ENTITY_GROUP_BREAKABLE = (1 << 6),
 };
 
 const EntityCollisionMode = enum(u8) {
@@ -117,7 +122,7 @@ pub fn EntityVtab(comptime T: type) type {
         // Called once after engine_load_level() when all entities have been
         // spawned. The json_t *def contains the "settings" of the entity from the
         // level json.
-        // TODO: settings: *const fn(self: *Entity, json_t *def);
+        settings: ?*const fn (self: *T, def: ObjectMap) void = null,
 
         // Called once per frame for each entity. The default entity_update_base()
         // moves the entity according to its physics
@@ -137,7 +142,7 @@ pub fn EntityVtab(comptime T: type) type {
         // Called when the entity collides with the game world or another entity
         // Careful: the trace will only be set from a game world collision. It will
         // be NULL for a collision with another entity.
-        // TODO: collide: ?*const fn (self: *Entity, normal: Vec2, trace: *Trace) void = null,
+        collide: ?*const fn (self: *T, normal: Vec2, trace: *Trace) void = null,
 
         // Called through entity_damage(). The default entity_base_damage() deducts
         // damage from the entity's health and calls entity_kill() if it's <= 0.

@@ -2,7 +2,9 @@ const std = @import("std");
 const Scene = @import("../scene.zig").Scene;
 const Image = @import("../image.zig").Image;
 const engine = @import("../engine.zig");
+const Engine = @import("../engine.zig").Engine;
 const types = @import("../types.zig");
+const game = @import("../game.zig");
 const vec2 = @import("../types.zig").vec2;
 const scale = @import("../utils.zig").scale;
 const clamp = std.math.clamp;
@@ -15,6 +17,7 @@ fn init() void {
     img_biolab = Image.init("assets/title-biolab.qoi") catch @panic("failed to init image");
     // img_disaster = Image.init("assets/title-disaster.qoi") catch @panic("failed to init image");
     // img_player = Image.init("assets/title-player.qoi") catch @panic("failed to init image");
+    Engine(game.Entity, game.EntityKind).loadLevel("assets/levels/biolab-1.json");
 }
 
 fn update() void {}

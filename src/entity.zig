@@ -1,7 +1,7 @@
 const std = @import("std");
 const Vec2 = @import("types.zig").Vec2;
 const Anim = @import("anim.zig").Anim;
-const Trace = @import("trace.zig");
+const Trace = @import("trace.zig").Trace;
 const vec2 = @import("types.zig").vec2;
 const ObjectMap = std.json.ObjectMap;
 
@@ -37,57 +37,51 @@ pub fn entityRefNone() EntityRef {
 /// The function
 ///   entity_touch(ent_b, ent_a)
 /// will be called when those two entities overlap.
-pub const EntityGroup = enum(u8) {
-    ENTITY_GROUP_NONE = 0,
-    ENTITY_GROUP_PLAYER = (1 << 0),
-    ENTITY_GROUP_NPC = (1 << 1),
-    ENTITY_GROUP_ENEMY = (1 << 2),
-    ENTITY_GROUP_ITEM = (1 << 3),
-    ENTITY_GROUP_PROJECTILE = (1 << 4),
-    ENTITY_GROUP_PICKUP = (1 << 5),
-    ENTITY_GROUP_BREAKABLE = (1 << 6),
-};
+pub const ENTITY_GROUP_NONE = 0;
+pub const ENTITY_GROUP_PLAYER = (1 << 0);
+pub const ENTITY_GROUP_NPC = (1 << 1);
+pub const ENTITY_GROUP_ENEMY = (1 << 2);
+pub const ENTITY_GROUP_ITEM = (1 << 3);
+pub const ENTITY_GROUP_PROJECTILE = (1 << 4);
+pub const ENTITY_GROUP_PICKUP = (1 << 5);
+pub const ENTITY_GROUP_BREAKABLE = (1 << 6);
 
-const EntityCollisionMode = enum(u8) {
-    ENTITY_COLLIDES_WORLD = (1 << 1),
-    ENTITY_COLLIDES_LITE = (1 << 4),
-    ENTITY_COLLIDES_PASSIVE = (1 << 5),
-    ENTITY_COLLIDES_ACTIVE = (1 << 6),
-    ENTITY_COLLIDES_FIXED = (1 << 7),
-};
+pub const ENTITY_COLLIDES_WORLD = (1 << 1);
+pub const ENTITY_COLLIDES_LITE = (1 << 4);
+pub const ENTITY_COLLIDES_PASSIVE = (1 << 5);
+pub const ENTITY_COLLIDES_ACTIVE = (1 << 6);
+pub const ENTITY_COLLIDES_FIXED = (1 << 7);
 
 // The ent->physics determines how and if entities are moved and collide.
-const EntityPhysics = enum(u8) {
-    // Don't collide, don't move. Useful for items that just sit there.
-    ENTITY_PHYSICS_NONE = 0,
+// Don't collide, don't move. Useful for items that just sit there.
+pub const ENTITY_PHYSICS_NONE = 0;
 
-    // Move the entity according to its velocity, but don't collide
-    ENTITY_PHYSICS_MOVE = (1 << 0),
+// Move the entity according to its velocity, but don't collide
+pub const ENTITY_PHYSICS_MOVE = (1 << 0);
 
-    // Move the entity and collide with the collision_map
-    ENTITY_PHYSICS_WORLD = (1 << 0) | (1 << 1), // EntityCollisionMode.ENTITY_COLLIDES_WORLD,
+// Move the entity and collide with the collision_map
+pub const ENTITY_PHYSICS_WORLD = (1 << 0) | ENTITY_COLLIDES_WORLD;
 
-    // Move the entity, collide with the collision_map and other entities, but
-    // only those other entities that have matching physics:
-    // In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
-    // moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
-    // vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
-    // don't collide with other LITE or PASSIVE entities at all. The behaiviour
-    // for FIXED vs. FIXED collisions is undefined.
-    ENTITY_PHYSICS_LITE = (1 << 0) | (1 << 1) | (1 << 4), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_LITE,
-    ENTITY_PHYSICS_PASSIVE = (1 << 0) | (1 << 1) | (1 << 5), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_PASSIVE,
-    ENTITY_PHYSICS_ACTIVE = (1 << 0) | (1 << 1) | (1 << 6), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_ACTIVE,
-    ENTITY_PHYSICS_FIXED = (1 << 0) | (1 << 1) | (1 << 7), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_FIXED,
-};
+// Move the entity, collide with the collision_map and other entities, but
+// only those other entities that have matching physics:
+// In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
+// moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
+// vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
+// don't collide with other LITE or PASSIVE entities at all. The behaiviour
+// for FIXED vs. FIXED collisions is undefined.
+pub const ENTITY_PHYSICS_LITE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_LITE;
+pub const ENTITY_PHYSICS_PASSIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_PASSIVE;
+pub const ENTITY_PHYSICS_ACTIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_ACTIVE;
+pub const ENTITY_PHYSICS_FIXED = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_FIXED;
 
 pub const EntityBase = struct {
     id: u16, // A unique id for this entity, assigned on spawn */ \
     is_alive: bool, // Determines if this entity is in use */ \
     on_ground: bool = false, // True for engine.gravity > 0 and standing on something */ \
     draw_order: i32 = 0, // Entities are sorted (ascending) by this before drawing */ \
-    physics: EntityPhysics = .ENTITY_PHYSICS_NONE, // Physics behavior */ \
-    group: EntityGroup = .ENTITY_GROUP_NONE, // The groups this entity belongs to */ \
-    check_against: EntityGroup = .ENTITY_GROUP_NONE, // The groups that this entity can touch */ \
+    physics: u8 = ENTITY_PHYSICS_NONE, // Physics behavior */ \
+    group: u8 = ENTITY_GROUP_NONE, // The groups this entity belongs to */ \
+    check_against: u8 = ENTITY_GROUP_NONE, // The groups that this entity can touch */ \
     pos: Vec2 = vec2(0, 0), // Top left position of the bounding box in the game world; usually not manipulated directly */ \
     size: Vec2 = vec2(0, 0), // The bounding box for physics */ \
     vel: Vec2 = vec2(0, 0), // Velocity */ \
@@ -142,7 +136,7 @@ pub fn EntityVtab(comptime T: type) type {
         // Called when the entity collides with the game world or another entity
         // Careful: the trace will only be set from a game world collision. It will
         // be NULL for a collision with another entity.
-        collide: ?*const fn (self: *T, normal: Vec2, trace: *Trace) void = null,
+        collide: ?*const fn (self: *T, normal: Vec2, trace: ?Trace) void = null,
 
         // Called through entity_damage(). The default entity_base_damage() deducts
         // damage from the entity's health and calls entity_kill() if it's <= 0.

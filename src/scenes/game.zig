@@ -13,6 +13,8 @@ const ziengine = @import("../engine.zig");
 const render = @import("../render.zig");
 const utils = @import("../utils.zig");
 const g = @import("../global.zig");
+const input = @import("../input.zig");
+const p = @import("../entities/player.zig");
 const Engine = @import("../engine.zig").Engine;
 const engine = Engine(game.Entity, game.EntityKind);
 
@@ -64,16 +66,16 @@ fn init() void {
     }
 
     // The map is used as CollisionMap AND BackgroundMap
-    // engine.setCollisionMap(map);
-    engine.addBackgroundMap(map);
+    engine.setCollisionMap(&map);
+    engine.addBackgroundMap(&map);
 
     player = engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16));
 }
 
 fn update() void {
-    // if (input_pressed(A_START)) {
-    //     engine_set_scene(&scene_game);
-    // }
+    if (input.pressed(p.A_START)) {
+        engine.setScene(&scene_game);
+    }
 
     if (game_over) {
         return;
@@ -96,7 +98,7 @@ fn update() void {
         }
 
         // Move all tiles up one row
-        std.mem.copyBackwards(u16, map.data[0..@intCast((map.size.y - 1) * map.size.x)], map.data[@intCast(map.size.x)..@intCast(map.size.y * map.size.x)]);
+        std.mem.copyForwards(u16, map.data[0..@intCast((map.size.y - 1) * map.size.x)], map.data[@intCast(map.size.x)..@intCast(map.size.y * map.size.x)]);
 
         // Generate new last row
         generate_row(@intCast(map.size.y - 1));

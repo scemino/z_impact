@@ -125,11 +125,13 @@ pub const Map = struct {
 
         // TODO: var ba = alloc.BumpAllocator{};
         var ba = std.heap.GeneralPurposeAllocator(.{}){};
+        const map_data = if (data) |d| d else ba.allocator().alloc(u16, @intCast(size.x * size.y)) catch @panic("failed to alloc");
+        @memset(map_data, 0);
         return .{
             .size = size,
             .tile_size = tile_size,
             .distance = 1,
-            .data = if (data) |d| d else ba.allocator().alloc(u16, @intCast(size.x * size.y)) catch @panic("failed to alloc"),
+            .data = map_data,
         };
     }
 
@@ -221,7 +223,7 @@ pub const Map = struct {
         if (tile_pos.x < 0 or tile_pos.x >= self.size.x or tile_pos.y < 0 or tile_pos.y >= self.size.y) {
             return 0;
         }
-        return self.data[tile_pos.y * self.size.x + tile_pos.x];
+        return self.data[@intCast(tile_pos.y * self.size.x + tile_pos.x)];
     }
 
     /// Return the tile index at the pixel position. Will return 0 when out of bounds

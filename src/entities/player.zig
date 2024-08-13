@@ -11,8 +11,14 @@ const animDef = @import("../anim.zig").animDef;
 const anim = @import("../anim.zig").anim;
 const AnimDef = @import("../anim.zig").AnimDef;
 const render = @import("../render.zig");
+const input = @import("../input.zig");
+const ett = @import("../entity.zig");
 const Engine = @import("../engine.zig").Engine;
 const engine = Engine(game.Entity, game.EntityKind);
+
+pub const A_LEFT: u8 = 1;
+pub const A_RIGHT: u8 = 2;
+pub const A_START: u8 = 4;
 
 var anim_idle: AnimDef = undefined;
 var sheet: Image = undefined;
@@ -31,20 +37,18 @@ fn init(self: *Entity) void {
     self.base.friction = vec2(4, 0);
     self.base.restitution = 0.5;
 
-    self.base.group = .ENTITY_GROUP_PLAYER;
-    self.base.physics = .ENTITY_PHYSICS_WORLD;
+    self.base.group = ett.ENTITY_GROUP_PLAYER;
+    self.base.physics = ett.ENTITY_PHYSICS_WORLD;
 }
 
 fn update(self: *Entity) void {
-    // if (input_state(A_LEFT)) {
-    // 	self->accel.x = -300;
-    // }
-    // else if (input_state(A_RIGHT)) {
-    // 	self->accel.x = 300;
-    // }
-    // else {
-    // 	self->accel.x = 0;
-    // }
+    if (input.stateb(A_LEFT)) {
+        self.base.accel.x = -300;
+    } else if (input.stateb(A_RIGHT)) {
+        self.base.accel.x = 300;
+    } else {
+        self.base.accel.x = 0;
+    }
     engine.baseUpdate(self);
 }
 

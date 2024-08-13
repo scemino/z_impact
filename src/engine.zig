@@ -15,15 +15,18 @@ const alloc = @import("allocator.zig");
 const img = @import("image.zig");
 const texture = @import("texture.zig");
 const platform = @import("platform.zig");
-const EntityVtab = @import("entity.zig").EntityVtab;
-const EntityRef = @import("entity.zig").EntityRef;
-const EntityList = @import("entity.zig").EntityList;
-const EntityGroup = @import("entity.zig").EntityGroup;
-const entityRefNone = @import("entity.zig").entityRefNone;
+const ett = @import("entity.zig");
+const EntityVtab = ett.EntityVtab;
+const EntityRef = ett.EntityRef;
+const EntityList = ett.EntityList;
+const entityRefNone = ett.entityRefNone;
+const trace = @import("trace.zig").trace;
 const render = @import("render.zig");
 const ziscene = @import("scene.zig");
 const Scene = ziscene.Scene;
+const input = @import("input.zig");
 const Map = @import("map.zig").Map;
+const Trace = @import("trace.zig").Trace;
 const ObjectMap = std.json.ObjectMap;
 
 // The maximum difference in seconds from one frame to the next. If the
@@ -32,6 +35,7 @@ const ObjectMap = std.json.ObjectMap;
 const ENGINE_MAX_TICK = 0.1;
 const ENTITIES_MAX = 1024;
 const ENGINE_MAX_BACKGROUND_MAPS = 4;
+const ENTITY_MIN_BOUNCE_VELOCITY = 10;
 
 // The engine is the main wrapper around your. For every frame, it will update
 // your scene, update all entities and draw the whole frame.
@@ -55,11 +59,11 @@ var frame: u64 = 0;
 
 /// The map to use for entity vs. world collisions. Reset for each scene.
 /// Use engine_set_collision_map() to set it.
-var collision_map: ?Map = null;
+var collision_map: ?*Map = null;
 
 // The maps to draw. Reset for each scene. Use engine_add_background_map()
 // to add.
-pub var background_maps: [ENGINE_MAX_BACKGROUND_MAPS]?Map = [1]?Map{null} ** ENGINE_MAX_BACKGROUND_MAPS;
+pub var background_maps: [ENGINE_MAX_BACKGROUND_MAPS]?*Map = [1]?*Map{null} ** ENGINE_MAX_BACKGROUND_MAPS;
 var background_maps_len: u32 = 0;
 
 // The top left corner of the viewport. Internally just an offset when
@@ -185,7 +189,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 mark.index = 0xFFFFFFFF;
             }
 
-            // input.clear();
+            input.clear();
             // temp.alloc_check();
 
             // engine.perf.draw_calls = render_draw_calls();
@@ -226,7 +230,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // Foreground maps
             for (background_maps) |map| {
                 if (map) |m| {
-                    if (!m.foreground) {
+                    if (m.foreground) {
                         m.draw(px_viewport);
                     }
                 }
@@ -240,9 +244,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn baseUpdate(self: *T) void {
-            // if (!(self.physics & .ENTITY_PHYSICS_MOVE)) {
-            //     return;
-            // }
+            if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) == 0) {
+                return;
+            }
 
             // Integrate velocity
             const v = self.base.vel;
@@ -258,6 +262,10 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         pub fn sceneBaseUpdate() void {
             updateEntities();
+        }
+
+        pub fn setCollisionMap(map: *Map) void {
+            collision_map = map;
         }
 
         fn renderCleanup() void {
@@ -326,10 +334,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // engine.perf.checks = 0;
             i = 0;
             for (&entities) |*e1| {
-                if (e1.base.check_against != .ENTITY_GROUP_NONE or
-                    e1.base.group != .ENTITY_GROUP_NONE
-                // or (e1.base.physics > .ENTITY_COLLIDES_LITE)
-                ) {
+                if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
+                    e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
+                {
                     const max_pos = e1.base.pos.x + e1.base.size.x;
                     var j: usize = i + 1;
                     while (j < entities_len and entities[j].base.pos.x < max_pos) {
@@ -344,13 +351,13 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                                 touchEntity(e2, e1);
                             }
 
-                            // if (e1.base.physics >= .ENTITY_COLLIDES_LITE and
-                            //     e2.base.physics >= .ENTITY_COLLIDES_LITE and
-                            //     (e1.base.physics + e2.base.physics) >= (.ENTITY_COLLIDES_ACTIVE | .ENTITY_COLLIDES_LITE) and
-                            //     e1.base.mass + e2.base.mass > 0)
-                            // {
-                            //     entityResolveCollision(e1, e2);
-                            // }
+                            if (e1.base.physics >= ett.ENTITY_COLLIDES_LITE and
+                                e2.base.physics >= ett.ENTITY_COLLIDES_LITE and
+                                (e1.base.physics + e2.base.physics) >= (ett.ENTITY_COLLIDES_ACTIVE | ett.ENTITY_COLLIDES_LITE) and
+                                e1.base.mass + e2.base.mass > 0)
+                            {
+                                entityResolveCollision(e1, e2);
+                            }
                         }
                         j += 1;
                     }
@@ -360,8 +367,8 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
             //engine.perf.entities = entities_len;
         }
-        fn contains(g1: EntityGroup, g2: EntityGroup) bool {
-            return (@intFromEnum(g1) & @intFromEnum(g2)) > 0;
+        fn contains(g1: u8, g2: u8) bool {
+            return (g1 & g2) != 0;
         }
 
         fn cmpEntityPos(context: void, a: T, b: T) bool {
@@ -396,29 +403,29 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // vtab(e.kind).settings.?(e, settings);
         }
 
-        fn collideEntity(e: *T, settings: ObjectMap) void {
-            vtab(e.kind).collide.?(e, settings);
+        fn collideEntity(e: *T, normal: Vec2, t: ?Trace) void {
+            vtab(e.kind).collide.?(e, normal, t);
         }
 
         fn entityResolveCollision(a: *T, b: *T) void {
-            const overlap_x = if (a.pos.x < b.pos.x) a.pos.x + a.size.x - b.pos.x else b.pos.x + b.size.x - a.pos.x;
-            const overlap_y = if (a.pos.y < b.pos.y) a.pos.y + a.size.y - b.pos.y else b.pos.y + b.size.y - a.pos.y;
+            const overlap_x = if (a.base.pos.x < b.base.pos.x) a.base.pos.x + a.base.size.x - b.base.pos.x else b.base.pos.x + b.base.size.x - a.base.pos.x;
+            const overlap_y = if (a.base.pos.y < b.base.pos.y) a.base.pos.y + a.base.size.y - b.base.pos.y else b.base.pos.y + b.base.size.y - a.base.pos.y;
             var a_move: f32 = undefined;
             var b_move: f32 = undefined;
-            if (a.physics & .ENTITY_COLLIDES_LITE or b.physics & .ENTITY_COLLIDES_FIXED) {
+            if ((a.base.physics & ett.ENTITY_COLLIDES_LITE) != 0 or (b.base.physics & ett.ENTITY_COLLIDES_FIXED) != 0) {
                 a_move = 1;
                 b_move = 0;
-            } else if (a.physics & .ENTITY_COLLIDES_FIXED or b.physics & .ENTITY_COLLIDES_LITE) {
+            } else if ((a.base.physics & ett.ENTITY_COLLIDES_FIXED) != 0 or (b.base.physics & ett.ENTITY_COLLIDES_LITE) != 0) {
                 a_move = 0;
                 b_move = 1;
             } else {
-                const total_mass = a.mass + b.mass;
-                a_move = b.mass / total_mass;
-                b_move = a.mass / total_mass;
+                const total_mass = a.base.mass + b.base.mass;
+                a_move = b.base.mass / total_mass;
+                b_move = a.base.mass / total_mass;
             }
 
             if (overlap_y > overlap_x) {
-                if (a.pos.x < b.pos.x) {
+                if (a.base.pos.x < b.base.pos.x) {
                     entities_separate_on_x_axis(a, b, a_move, b_move, overlap_x);
                     collideEntity(a, vec2(-1, 0), null);
                     collideEntity(b, vec2(1, 0), null);
@@ -428,7 +435,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     collideEntity(b, vec2(-1, 0), null);
                 }
             } else {
-                if (a.pos.y < b.pos.y) {
+                if (a.base.pos.y < b.base.pos.y) {
                     entities_separate_on_y_axis(a, b, a_move, b_move, overlap_y);
                     collideEntity(a, vec2(0, -1), null);
                     collideEntity(b, vec2(0, 1), null);
@@ -440,65 +447,92 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
         }
 
-        fn entities_separate_on_x_axis(left: T, right: T, left_move: f32, right_move: f32, overlap: f32) void {
-            const impact_velocity = left.vel.x - right.vel.x;
+        fn entities_separate_on_x_axis(left: *T, right: *T, left_move: f32, right_move: f32, overlap: f32) void {
+            const impact_velocity = left.base.vel.x - right.base.vel.x;
 
             if (left_move > 0) {
-                left.vel.x = right.vel.x * left_move + left.vel.x * right_move;
+                left.base.vel.x = right.base.vel.x * left_move + left.base.vel.x * right_move;
 
-                const bounce = impact_velocity * left.restitution;
-                if (bounce > .ENTITY_MIN_BOUNCE_VELOCITY) {
-                    left.vel.x -= bounce;
+                const bounce = impact_velocity * left.base.restitution;
+                if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
+                    left.base.vel.x -= bounce;
                 }
                 entity_move(left, vec2(-overlap * left_move, 0));
             }
             if (right_move > 0) {
-                right.vel.x = left.vel.x * right_move + right.vel.x * left_move;
+                right.base.vel.x = left.base.vel.x * right_move + right.base.vel.x * left_move;
 
-                const bounce = impact_velocity * right.restitution;
-                if (bounce > .ENTITY_MIN_BOUNCE_VELOCITY) {
-                    right.vel.x += bounce;
+                const bounce = impact_velocity * right.base.restitution;
+                if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
+                    right.base.vel.x += bounce;
                 }
                 entity_move(right, vec2(overlap * right_move, 0));
             }
         }
 
-        fn entities_separate_on_y_axis(top: T, bottom: T, top_move: f32, bottom_move: f32, overlap: f32) void {
-            if (bottom.on_ground and top_move > 0) {
+        fn entities_separate_on_y_axis(top: *T, bottom: *T, tm: f32, bm: f32, overlap: f32) void {
+            var top_move = tm;
+            var bottom_move = bm;
+            if (bottom.base.on_ground and top_move > 0) {
                 top_move = 1;
                 bottom_move = 0;
             }
 
-            const impact_velocity = top.vel.y - bottom.vel.y;
-            const top_vel_y = top.vel.y;
+            const impact_velocity = top.base.vel.y - bottom.base.vel.y;
+            const top_vel_y = top.base.vel.y;
 
             if (top_move > 0) {
-                top.vel.y = (top.vel.y * bottom_move + bottom.vel.y * top_move);
+                top.base.vel.y = (top.base.vel.y * bottom_move + bottom.base.vel.y * top_move);
 
-                const move_x = 0;
-                const bounce = impact_velocity * top.restitution;
-                if (bounce > .ENTITY_MIN_BOUNCE_VELOCITY) {
-                    top.vel.y -= bounce;
+                var move_x: f32 = 0;
+                const bounce = impact_velocity * top.base.restitution;
+                if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
+                    top.base.vel.y -= bounce;
                 } else {
-                    top.on_ground = true;
-                    move_x = bottom.vel.x * tick;
+                    top.base.on_ground = true;
+                    move_x = @floatCast(bottom.base.vel.x * tick);
                 }
                 entity_move(top, vec2(move_x, -overlap * top_move));
             }
             if (bottom_move > 0) {
-                bottom.vel.y = bottom.vel.y * top_move + top_vel_y * bottom_move;
+                bottom.base.vel.y = bottom.base.vel.y * top_move + top_vel_y * bottom_move;
 
-                const bounce = impact_velocity * bottom.restitution;
-                if (bounce > .ENTITY_MIN_BOUNCE_VELOCITY) {
-                    bottom.vel.y += bounce;
+                const bounce = impact_velocity * bottom.base.restitution;
+                if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
+                    bottom.base.vel.y += bounce;
                 }
                 entity_move(bottom, vec2(0, overlap * bottom_move));
             }
         }
 
         fn entity_move(self: *T, vstep: Vec2) void {
+            if (((self.base.physics & ett.ENTITY_PHYSICS_WORLD) != 0) and collision_map != null) {
+                const t = trace(collision_map.?, self.base.pos, vstep, self.base.size);
+                entity_handle_trace_result(self, t);
+
+                // The previous trace was stopped short and we still have some velocity
+                // left? Do a second trace with the new velocity. this allows us
+                // to slide along tiles;
+                if (t.length < 1) {
+                    const rotated_normal = vec2(-t.normal.y, t.normal.x);
+                    const vel_along_normal = vstep.dot(rotated_normal);
+
+                    if (vel_along_normal != 0) {
+                        const remaining = 1 - t.length;
+                        const vstep2 = rotated_normal.mulf(vel_along_normal * remaining);
+                        const t2 = trace(collision_map.?, self.base.pos, vstep2, self.base.size);
+                        entity_handle_trace_result(self, t2);
+                    }
+                }
+            } else {
+                self.base.pos = self.base.pos.add(vstep);
+            }
+        }
+
+        fn entity_handle_trace_result(self: *T, t: Trace) void {
+            // TODO:
             _ = self;
-            _ = vstep;
+            _ = t;
         }
 
         fn entityRef(self: ?*T) EntityRef {
@@ -657,7 +691,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // temp_free(json);
         }
 
-        pub fn addBackgroundMap(map: Map) void {
+        pub fn addBackgroundMap(map: *Map) void {
             assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
             background_maps[background_maps_len] = map;
             background_maps_len += 1;

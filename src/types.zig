@@ -31,6 +31,10 @@ pub const Vec2 = struct {
     pub fn divf(a: Vec2, f: f32) Vec2 {
         return vec2(a.x / f, a.y / f);
     }
+
+    pub fn dot(a: Vec2, b: Vec2) f32 {
+        return a.x * b.x + a.y * b.y;
+    }
 };
 
 pub const Vec2i = struct {
@@ -39,6 +43,10 @@ pub const Vec2i = struct {
 
     pub fn divi(a: Vec2i, f: i32) Vec2i {
         return vec2i(@divFloor(a.x, f), @divFloor(a.y, f));
+    }
+
+    pub fn muli(a: Vec2i, f: i32) Vec2i {
+        return vec2i(a.x * f, a.y * f);
     }
 };
 

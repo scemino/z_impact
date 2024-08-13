@@ -10,6 +10,9 @@ const Map = @import("map.zig").Map;
 const entity = @import("entity.zig");
 const sgame = @import("scenes/game.zig");
 const game = @import("game.zig");
+const input = @import("input.zig");
+const platform = @import("platform.zig");
+const player = @import("entities/player.zig");
 const EntityVtab = @import("entity.zig").EntityVtab;
 
 var map: Map = undefined;
@@ -27,6 +30,12 @@ export fn init() void {
         game.player.vtab,
     };
     engine.init(&vtabs);
+
+    // Keyboard
+    input.bind(.INPUT_KEY_LEFT, player.A_LEFT);
+    input.bind(.INPUT_KEY_RIGHT, player.A_RIGHT);
+    input.bind(.INPUT_KEY_RETURN, player.A_START);
+
     engine.setScene(&sgame.scene_game);
 }
 
@@ -44,6 +53,7 @@ pub fn main() void {
         .init_cb = init,
         .frame_cb = update,
         .cleanup_cb = cleanup,
+        .event_cb = &platform.platform_handle_event,
         .window_title = "Z Impact Game",
         .width = render.RENDER_WIDTH * 5,
         .height = render.RENDER_HEIGHT * 5,

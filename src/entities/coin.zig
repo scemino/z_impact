@@ -1,6 +1,7 @@
 const std = @import("std");
 const game = @import("../game.zig");
-const EntityVtab = @import("../entity.zig").EntityVtab;
+const ett = @import("../entity.zig");
+const EntityVtab = ett.EntityVtab;
 const Entity = game.Entity;
 const Image = @import("../image.zig").Image;
 const types = @import("../types.zig");
@@ -30,7 +31,7 @@ fn init(self: *Entity) void {
     self.base.size = vec2(6, 6);
     self.base.offset = vec2(-1, -1);
 
-    self.base.check_against = .ENTITY_GROUP_PLAYER;
+    self.base.check_against = ett.ENTITY_GROUP_PLAYER;
 }
 
 fn update(self: *Entity) void {

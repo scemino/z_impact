@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const alloc = @import("allocator.zig");
 const types = @import("types.zig");
 const Vec2 = types.Vec2;
 const Vec2i = types.Vec2i;
@@ -7,7 +8,6 @@ const vec2 = types.vec2;
 const vec2i = types.vec2i;
 const fromVec2 = types.fromVec2;
 const img = @import("image.zig");
-const alloc = @import("allocator.zig");
 const engine = @import("engine.zig");
 const render = @import("render.zig");
 const ObjectMap = std.json.ObjectMap;
@@ -28,20 +28,20 @@ pub const Map = struct {
 
     // The name of the map. For collision maps this is usually "collision".
     // Background maps may have any name.
-    name: [16]u8,
+    name: [16]u8 = [1]u8{0} ** 16,
 
     // The "distance" of the map when drawing at a certain offset. Maps that
     // have a higher distance move slower. Default 1.
-    distance: f32,
+    distance: f32 = 1.0,
 
     // Whether the map repeats indefinitely when drawing
-    repeat: bool,
+    repeat: bool = false,
 
     // Whether to draw this map in fround of all entities
-    foreground: bool,
+    foreground: bool = false,
 
     // The tileset image to use when drawing. Might be NULL for collision maps
-    tileset: img.Image,
+    tileset: ?img.Image = null,
 
     // Animations for certain tiles when drawing. Use map_set_anim() to add
     // animations.
@@ -51,7 +51,7 @@ pub const Map = struct {
     data: []u16,
 
     // The highest tile index in that map; used internally.
-    max_tile: u16,
+    max_tile: u16 = 0,
 
     /// Load a map from a json. The json must have the following layout.
     /// Note that tile indices have a bias of +1. I.e. index 0 will not draw anything
@@ -118,6 +118,19 @@ pub const Map = struct {
         }
 
         return map;
+    }
+
+    pub fn initWithData(tile_size: u16, size: Vec2i, data: ?[]u16) Map {
+        assert(!engine.is_running); // "Cannot create map during gameplay");
+
+        // TODO: var ba = alloc.BumpAllocator{};
+        var ba = std.heap.GeneralPurposeAllocator(.{}){};
+        return .{
+            .size = size,
+            .tile_size = tile_size,
+            .distance = 1,
+            .data = if (data) |d| d else ba.allocator().alloc(u16, @intCast(size.x * size.y)) catch @panic("failed to alloc"),
+        };
     }
 
     /// Draw the map at the given offset. This will take the distance into account.
@@ -226,7 +239,7 @@ pub const Map = struct {
             }
         }
 
-        self.tileset.drawTile(tile, vec2i(self.tile_size, self.tile_size), pos);
+        self.tileset.?.drawTile(tile, vec2i(self.tile_size, self.tile_size), pos);
     }
 
     fn getInt(comptime T: type, obj: ObjectMap, name: []const u8) T {

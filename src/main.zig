@@ -8,7 +8,7 @@ const vec2 = types.vec2;
 const stm = @import("sokol").time;
 const Map = @import("map.zig").Map;
 const entity = @import("entity.zig");
-const title = @import("scenes/title.zig");
+const sgame = @import("scenes/game.zig");
 const game = @import("game.zig");
 const EntityVtab = @import("entity.zig").EntityVtab;
 
@@ -23,11 +23,11 @@ export fn init() void {
     stm.setup();
 
     vtabs = [_]EntityVtab(game.Entity){
-        game.blob.vtab,
+        game.coin.vtab,
         game.player.vtab,
     };
     engine.init(&vtabs);
-    engine.setScene(&title.scene_title);
+    engine.setScene(&sgame.scene_game);
 }
 
 export fn update() void {
@@ -45,7 +45,7 @@ pub fn main() void {
         .frame_cb = update,
         .cleanup_cb = cleanup,
         .window_title = "Z Impact Game",
-        .width = 1280,
-        .height = 720,
+        .width = render.RENDER_WIDTH * 5,
+        .height = render.RENDER_HEIGHT * 5,
     });
 }

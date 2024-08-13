@@ -20,7 +20,7 @@ pub const AnimDef = struct {
 };
 
 pub const Anim = struct {
-    def: *const AnimDef,
+    def: ?*const AnimDef = null,
     start_time: f64,
     tile_offset: u16 = 0,
     flip_x: bool = false,
@@ -32,24 +32,24 @@ pub const Anim = struct {
         var def = self.def;
         const rs = render.renderSize();
         if ((pos.x > @as(f32, @floatFromInt(rs.x))) or (pos.y > @as(f32, @floatFromInt(rs.y)) or
-            (pos.x + @as(f32, @floatFromInt(def.frame_size.x)) < 0) or (pos.y + @as(f32, @floatFromInt(def.frame_size.y)) < 0) or
+            (pos.x + @as(f32, @floatFromInt(def.?.frame_size.x)) < 0) or (pos.y + @as(f32, @floatFromInt(def.?.frame_size.y)) < 0) or
             (self.color.a() <= 0)))
             return;
 
         const diff: f64 = @max(0, engine.time - self.start_time);
-        const looped: f64 = diff * def.inv_total_time;
+        const looped: f64 = diff * def.?.inv_total_time;
 
-        const frame = if (!def.loop and looped >= 1) def.sequence.len - 1 else @as(usize, @intFromFloat((looped - @floor(looped)) * @as(f64, @floatFromInt(def.sequence.len))));
-        const tile = def.sequence[frame] + self.tile_offset;
-        std.log.info("frame: {}, diff: {}, seq: {}", .{ frame, diff, def.sequence[frame] });
+        const frame = if (!def.?.loop and looped >= 1) def.?.sequence.len - 1 else @as(usize, @intFromFloat((looped - @floor(looped)) * @as(f64, @floatFromInt(def.?.sequence.len))));
+        const tile = def.?.sequence[frame] + self.tile_offset;
+        // std.log.info("frame: {}, diff: {}, seq: {}", .{ frame, diff, def.?.sequence[frame] });
 
         if (self.rotation == 0) {
-            def.sheet.drawTileEx(tile, def.frame_size, pos, self.flip_x, self.flip_y, self.color);
+            def.?.sheet.drawTileEx(tile, def.?.frame_size, pos, self.flip_x, self.flip_y, self.color);
         } else {
             render.push();
-            render.translate(Vec2.add(pos, def.pivot));
+            render.translate(Vec2.add(pos, def.?.pivot));
             render.rotate(self.rotation);
-            def.sheet.drawTileEx(tile, def.frame_size, Vec2.mulf(def.pivot, -1.0), self.flip_x, self.flip_y, self.color);
+            def.?.sheet.drawTileEx(tile, def.?.frame_size, Vec2.mulf(def.?.pivot, -1.0), self.flip_x, self.flip_y, self.color);
             render.pop();
         }
     }

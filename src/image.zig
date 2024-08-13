@@ -34,7 +34,7 @@ pub const Image = struct {
         assert(images_len < IMAGE_MAX_SOURCES);
         // TODO: assert !engine_is_running()
 
-        image_paths[images_len] = try bumpAlloc(path.len);
+        image_paths[images_len] = try bumpAlloc(u8, path.len);
         @memcpy(image_paths[images_len], path);
 
         var file = try std.fs.cwd().openFile(path, .{});
@@ -65,11 +65,16 @@ pub const Image = struct {
         render.draw(pos, size, self.texture, .{ .x = 0, .y = 0 }, size, types.white());
     }
 
+    pub fn drawEx(self: Image, src_pos: Vec2, src_size: Vec2, dst_pos: Vec2, dst_size: Vec2, color: Rgba) void {
+        render.draw(dst_pos, dst_size, self.texture, src_pos, src_size, color);
+    }
+
     pub fn drawTile(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2) void {
         self.drawTileEx(tile, tile_size, dst_pos, false, false, types.white());
     }
 
     pub fn drawTileEx(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2, flip_x: bool, flip_y: bool, color: Rgba) void {
+        assert(self.size.x > 0);
         var src_pos = types.vec2(
             @floatFromInt(@mod(tile * tile_size.x, self.size.x)),
             @as(f32, @floatFromInt(@divFloor(tile * tile_size.x, self.size.x))) * @as(f32, @floatFromInt(tile_size.y)),

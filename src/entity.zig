@@ -10,16 +10,16 @@ const ObjectMap = std.json.ObjectMap;
 /// NULL, if the referenced entity is no longer valid (i.e. dead). This prevents
 /// errors with direct entity_t* which will always point to a valid entity
 /// storage, but may no longer be the entity that you wanted.
-const EntityRef = struct {
+pub const EntityRef = struct {
     id: u16,
     index: u16,
 };
 
 // A list of entity refs. Usually bump allocated and thus only valid for the
 // current frame.
-const EntityList = struct {
+pub const EntityList = struct {
     len: usize,
-    entities: *EntityRef,
+    entities: []EntityRef,
 };
 
 // entity_ref_none will always resolve to NULL
@@ -57,35 +57,35 @@ const EntityCollisionMode = enum(u8) {
 };
 
 // The ent->physics determines how and if entities are moved and collide.
-// const EntityPhysics = enum(u8) {
-//     // Don't collide, don't move. Useful for items that just sit there.
-//     ENTITY_PHYSICS_NONE = 0,
+const EntityPhysics = enum(u8) {
+    // Don't collide, don't move. Useful for items that just sit there.
+    ENTITY_PHYSICS_NONE = 0,
 
-//     // Move the entity according to its velocity, but don't collide
-//     ENTITY_PHYSICS_MOVE = (1 << 0),
+    // Move the entity according to its velocity, but don't collide
+    ENTITY_PHYSICS_MOVE = (1 << 0),
 
-//     // Move the entity and collide with the collision_map
-//     ENTITY_PHYSICS_WORLD = EntityPhysics.ENTITY_PHYSICS_MOVE | EntityCollisionMode.ENTITY_COLLIDES_WORLD,
+    // Move the entity and collide with the collision_map
+    ENTITY_PHYSICS_WORLD = (1 << 0) | (1 << 1), // EntityCollisionMode.ENTITY_COLLIDES_WORLD,
 
-//     // Move the entity, collide with the collision_map and other entities, but
-//     // only those other entities that have matching physics:
-//     // In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
-//     // moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
-//     // vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
-//     // don't collide with other LITE or PASSIVE entities at all. The behaiviour
-//     // for FIXED vs. FIXED collisions is undefined.
-//     ENTITY_PHYSICS_LITE = EntityPhysics.ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_LITE,
-//     ENTITY_PHYSICS_PASSIVE = EntityPhysics.ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_PASSIVE,
-//     ENTITY_PHYSICS_ACTIVE = EntityPhysics.ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_ACTIVE,
-//     ENTITY_PHYSICS_FIXED = EntityPhysics.ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_FIXED,
-// };
+    // Move the entity, collide with the collision_map and other entities, but
+    // only those other entities that have matching physics:
+    // In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
+    // moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
+    // vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
+    // don't collide with other LITE or PASSIVE entities at all. The behaiviour
+    // for FIXED vs. FIXED collisions is undefined.
+    ENTITY_PHYSICS_LITE = (1 << 0) | (1 << 1) | (1 << 4), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_LITE,
+    ENTITY_PHYSICS_PASSIVE = (1 << 0) | (1 << 1) | (1 << 5), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_PASSIVE,
+    ENTITY_PHYSICS_ACTIVE = (1 << 0) | (1 << 1) | (1 << 6), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_ACTIVE,
+    ENTITY_PHYSICS_FIXED = (1 << 0) | (1 << 1) | (1 << 7), // ENTITY_PHYSICS_WORLD | EntityCollisionMode.ENTITY_COLLIDES_FIXED,
+};
 
 pub const EntityBase = struct {
     id: u16, // A unique id for this entity, assigned on spawn */ \
     is_alive: bool, // Determines if this entity is in use */ \
     on_ground: bool = false, // True for engine.gravity > 0 and standing on something */ \
     draw_order: i32 = 0, // Entities are sorted (ascending) by this before drawing */ \
-    // physics: EntityPhysics, // Physics behavior */ \
+    physics: EntityPhysics = .ENTITY_PHYSICS_NONE, // Physics behavior */ \
     group: EntityGroup = .ENTITY_GROUP_NONE, // The groups this entity belongs to */ \
     check_against: EntityGroup = .ENTITY_GROUP_NONE, // The groups that this entity can touch */ \
     pos: Vec2 = vec2(0, 0), // Top left position of the bounding box in the game world; usually not manipulated directly */ \

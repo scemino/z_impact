@@ -12,10 +12,13 @@ const sapp = sokol.app;
 const sgl = sokol.gl;
 
 const RENDER_ATLAS_SIZE = 64;
-const RENDER_ATLAS_GRID = 32;
+const RENDER_ATLAS_GRID = 8;
 const RENDER_ATLAS_SIZE_PX = (RENDER_ATLAS_SIZE * RENDER_ATLAS_GRID);
 
-var logical_size: Vec2i = types.vec2i(1280, 720);
+pub const RENDER_WIDTH = 64;
+pub const RENDER_HEIGHT = 96;
+
+var logical_size: Vec2i = types.vec2i(RENDER_WIDTH, RENDER_HEIGHT);
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;

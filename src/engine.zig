@@ -17,6 +17,7 @@ const texture = @import("texture.zig");
 const platform = @import("platform.zig");
 const EntityVtab = @import("entity.zig").EntityVtab;
 const EntityRef = @import("entity.zig").EntityRef;
+const EntityList = @import("entity.zig").EntityList;
 const EntityGroup = @import("entity.zig").EntityGroup;
 const entityRefNone = @import("entity.zig").entityRefNone;
 const render = @import("render.zig");
@@ -32,36 +33,12 @@ const ENGINE_MAX_TICK = 0.1;
 const ENTITIES_MAX = 1024;
 const ENGINE_MAX_BACKGROUND_MAPS = 4;
 
-// Every scene in your game must provide a scene_t that specifies it's entry
-// functions.
-// const Scene = struct {
-//     // Called once when the scene is set. Use it to load resources and
-//     // instaiate your initial entities
-//     init: *const fn () void,
-
-//     // Called once per frame. Uss this to update logic specific to your game.
-//     // If you use this function, you probably want to call scene_base_update()
-//     // in it somewhere.
-//     update: *const fn () void,
-
-//     // Called once per frame. Use this to e.g. draw a background or hud.
-//     // If you use this function, you probably want to call scene_base_draw()
-//     // in it somewhere.
-//     draw: *const fn () void,
-
-//     // Called once before the next scene is set or the game ends
-//     cleanup: *const fn () void,
-// };
-
 // The engine is the main wrapper around your. For every frame, it will update
 // your scene, update all entities and draw the whole frame.
 
 // The engine takes care of timekeeping, a number background maps, a collision
 // map some more global state. There's only one engine_t instance in high_impact
 // and it's globally available at `engine`
-
-/// The real time in seconds since program start
-var time_real: f64 = 0.0;
 
 /// The game time in seconds since scene start
 pub var time: f64 = 0.0;
@@ -71,7 +48,7 @@ var time_scale: f64 = 1.0;
 
 // The time difference in seconds from the last frame to the current.
 // Typically 0.01666 (assuming 60hz)
-var tick: f64 = 0;
+pub var tick: f64 = 0;
 
 // The frame number in this current scene. Increases by 1 for every frame.
 var frame: u64 = 0;
@@ -84,11 +61,6 @@ var collision_map: ?Map = null;
 // to add.
 pub var background_maps: [ENGINE_MAX_BACKGROUND_MAPS]?Map = [1]?Map{null} ** ENGINE_MAX_BACKGROUND_MAPS;
 var background_maps_len: u32 = 0;
-
-// A global multiplier that affects the gravity of all entities. This only
-// makes sense for side view games. For a top-down game you'd want to have
-// it at 0.0. Default: 1.0
-var gravity: f32 = 1.0;
 
 // The top left corner of the viewport. Internally just an offset when
 // drawing background_maps and entities.
@@ -113,17 +85,22 @@ var init_textures_mark: texture.TextureMark = .{};
 var init_images_mark: img.ImageMark = .{};
 var init_bump_mark: alloc.BumpMark = .{};
 // var init_sounds_mark: sound_mark_t = {};
-var is_running = false;
+pub var is_running = false;
 
 pub fn Engine(comptime T: type, comptime TKind: type) type {
     return struct {
+        // A global multiplier that affects the gravity of all entities. This only
+        // makes sense for side view games. For a top-down game you'd want to have
+        // it at 0.0. Default: 1.0
+        pub var gravity: f32 = 1.0;
+
+        /// The real time in seconds since program start
+        pub var time_real: f64 = 0.0;
         var entity_vtab: []const EntityVtab(T) = undefined;
         var entities: [ENTITIES_MAX]T = undefined;
         var entities_storage: [ENTITIES_MAX]T = undefined;
         var entities_len: usize = 0;
         var entity_unique_id: u16 = 0;
-
-        // const Self = @This();
 
         pub fn init(vtabs: []const EntityVtab(T)) void {
             time_real = platform.now();
@@ -202,7 +179,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     baseDraw();
                 }
 
-                render.frameEnd();
+                frameEnd();
                 // engine.perf.draw = (platform_now() - time_real_now) - engine.perf.update;
                 alloc.bumpReset(mark);
                 mark.index = 0xFFFFFFFF;
@@ -256,7 +233,30 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
         }
 
-        fn sceneBaseUpdate() void {
+        pub fn entityBaseDraw(self: *T, vp: Vec2) void {
+            if (self.base.anim.def != null) {
+                self.base.anim.draw(Vec2.sub(Vec2.sub(self.base.pos, vp), self.base.offset));
+            }
+        }
+
+        pub fn baseUpdate(self: *T) void {
+            // if (!(self.physics & .ENTITY_PHYSICS_MOVE)) {
+            //     return;
+            // }
+
+            // Integrate velocity
+            const v = self.base.vel;
+
+            self.base.vel.y = @floatCast(self.base.vel.y + gravity * self.base.gravity * tick);
+            const friction = vec2(@min(@as(f32, @floatCast(self.base.friction.x * tick)), 1), @min(@as(f32, @floatCast(self.base.friction.y * tick)), 1));
+            self.base.vel = Vec2.add(self.base.vel, Vec2.sub(Vec2.mulf(self.base.accel, @as(f32, @floatCast(tick))), Vec2.mul(self.base.vel, friction)));
+
+            const vstep = Vec2.mulf(Vec2.add(v, self.base.vel), @as(f32, @floatCast(tick * 0.5)));
+            self.base.on_ground = false;
+            entity_move(self, vstep);
+        }
+
+        pub fn sceneBaseUpdate() void {
             updateEntities();
         }
 
@@ -281,7 +281,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             };
         }
 
-        fn draw() void {
+        fn frameEnd() void {
             sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
             sgl.draw();
             sg.endPass();
@@ -383,6 +383,11 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         fn touchEntity(e1: *T, e2: *T) void {
             vtab(e1.kind).touch.?(e1, e2);
+        }
+
+        pub fn killEntity(entity: *T) void {
+            entity.base.is_alive = false;
+            vtab(entity.kind).kill.?(entity);
         }
 
         fn settingsEntity(e: *T, settings: ObjectMap) void {
@@ -491,19 +496,19 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
         }
 
-        fn entity_move(self: T, vstep: Vec2) void {
+        fn entity_move(self: *T, vstep: Vec2) void {
             _ = self;
             _ = vstep;
         }
 
-        fn entityRef(self: T) EntityRef {
-            if (!self) {
-                return entityRefNone();
+        fn entityRef(self: ?*T) EntityRef {
+            if (self) |me| {
+                return .{
+                    .id = me.base.id,
+                    .index = @intCast(@intFromPtr(me) - @intFromPtr(&entities_storage[0])),
+                };
             }
-            return .{
-                .id = self.id,
-                .index = self - entities_storage,
-            };
+            return entityRefNone();
         }
 
         pub fn spawn(kind: anytype, pos: Vec2) T {
@@ -521,7 +526,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     .mass = 1,
                     .size = vec2(8, 8),
                 },
-                .kind = kind.?,
+                .kind = kind,
                 .entity = undefined,
             };
 
@@ -540,14 +545,37 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 self.base.pos.y + self.base.size.y <= other.base.pos.y);
         }
 
+        pub fn entitiesByType(kind: TKind) std.ArrayList(EntityRef) {
+            var ba = alloc.BumpAllocator{};
+            var list = std.ArrayList(EntityRef).init(ba.allocator());
+            // FIXME:PERF: linear search
+            for (&entities) |*entity| {
+                if (entity.kind == kind and entity.base.is_alive) {
+                    list.append(entityRef(entity)) catch @panic("failed to append");
+                }
+            }
+
+            return list;
+        }
+
+        pub fn entityByRef(ref: EntityRef) ?*T {
+            const ent = &entities_storage[ref.index];
+            if (ent.base.is_alive and ent.base.id == ref.id) {
+                return ent;
+            }
+
+            return null;
+        }
+
         fn entitiesDraw(vp: Vec2) void {
             // Sort entities by draw_order
             // FIXME: this copies the entity array - which is sorted by pos.x/y and
             // sorts it again by draw_order. It's using insertion sort, which is slow
             // for data that is not already mostly sorted.
-            var ba = alloc.BumpAllocator{};
+            // TODO: var ba = alloc.BumpAllocator{};
+            var ba = std.heap.GeneralPurposeAllocator(.{}){};
             const draw_ents = ba.allocator().alloc(T, entities_len) catch @panic("failed to alloc");
-            @memcpy(draw_ents[0..], entities[0..]);
+            @memcpy(draw_ents[0..], entities[0..entities_len]);
 
             std.sort.heap(T, draw_ents, {}, cmpEntity);
 
@@ -629,7 +657,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // temp_free(json);
         }
 
-        fn addBackgroundMap(map: Map) void {
+        pub fn addBackgroundMap(map: Map) void {
             assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
             background_maps[background_maps_len] = map;
             background_maps_len += 1;

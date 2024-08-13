@@ -1,24 +1,64 @@
 const std = @import("std");
 const game = @import("../game.zig");
 const Entity = game.Entity;
+const Image = @import("../image.zig").Image;
 const EntityVtab = @import("../entity.zig").EntityVtab;
 const types = @import("../types.zig");
 const Vec2 = types.Vec2;
+const vec2 = types.vec2;
+const vec2i = types.vec2i;
+const animDef = @import("../anim.zig").animDef;
+const anim = @import("../anim.zig").anim;
+const AnimDef = @import("../anim.zig").AnimDef;
+const render = @import("../render.zig");
+const Engine = @import("../engine.zig").Engine;
+const engine = Engine(game.Entity, game.EntityKind);
 
-fn load() void {}
+var anim_idle: AnimDef = undefined;
+var sheet: Image = undefined;
+var hints: Image = undefined;
 
-fn init(e: *Entity) void {
-    _ = e;
+fn load() void {
+    sheet = Image.init("assets/player.qoi") catch @panic("failed to init image");
+    anim_idle = animDef(&sheet, vec2i(4, 4), 1.0, &[_]u16{0}, true);
+    // sound_bounce = sound_source("assets/bounce.qoa");
+    hints = Image.init("assets/hints.qoi") catch @panic("failed to init image");
 }
 
-fn update(e: *Entity) void {
-    _ = e;
+fn init(self: *Entity) void {
+    self.base.anim = anim(&anim_idle);
+    self.base.size = vec2(4, 4);
+    self.base.friction = vec2(4, 0);
+    self.base.restitution = 0.5;
+
+    self.base.group = .ENTITY_GROUP_PLAYER;
+    self.base.physics = .ENTITY_PHYSICS_WORLD;
 }
 
-fn draw(e: *Entity, pos: Vec2) void {
-    _ = e;
-    _ = pos;
-    std.log.info("player: draw", .{});
+fn update(self: *Entity) void {
+    // if (input_state(A_LEFT)) {
+    // 	self->accel.x = -300;
+    // }
+    // else if (input_state(A_RIGHT)) {
+    // 	self->accel.x = 300;
+    // }
+    // else {
+    // 	self->accel.x = 0;
+    // }
+    engine.baseUpdate(self);
+}
+
+fn draw(self: *Entity, vp: Vec2) void {
+    engine.entityBaseDraw(self, vp);
+
+    // Draw arrows when player is off-screen
+    if (self.base.pos.y < vp.y - 4) {
+        hints.drawTile(1, vec2i(4, 4), vec2(self.base.pos.x, 0));
+    } else if (self.base.pos.x < -4) {
+        hints.drawTile(0, vec2i(4, 4), vec2(0, self.base.pos.y - vp.y));
+    } else if (self.base.pos.x > @as(f32, @floatFromInt(render.renderSize().x))) {
+        hints.drawTile(2, vec2i(4, 4), vec2(@as(f32, @floatFromInt(render.renderSize().x)) - 4, self.base.pos.y - vp.y));
+    }
 }
 
 pub var vtab: EntityVtab(Entity) = .{

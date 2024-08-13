@@ -1,6 +1,8 @@
 const render = @import("render.zig");
 const engine = @import("engine.zig");
 
+/// Every scene in your game must provide a Scene that specifies it's entry
+/// functions.
 pub const Scene = struct {
     /// Called once when the scene is set. Use it to load resources and
     /// instantiate your initial entities

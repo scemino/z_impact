@@ -149,9 +149,9 @@ pub const TempAllocator = struct {
     }
 };
 
-pub fn bumpAlloc(size: usize) ![]u8 {
+pub fn bumpAlloc(comptime T: type, size: usize) ![]T {
     var bump_alloc = BumpAllocator{};
-    return bump_alloc.allocator().alloc(u8, size);
+    return bump_alloc.allocator().alloc(T, size);
 }
 
 /// Return the current position of the bump allocator

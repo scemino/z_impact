@@ -76,6 +76,7 @@ pub const ENTITY_PHYSICS_FIXED = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_FIXED;
 
 pub const EntityBase = struct {
     id: u16, // A unique id for this entity, assigned on spawn */ \
+    index: u16,
     is_alive: bool, // Determines if this entity is in use */ \
     on_ground: bool = false, // True for engine.gravity > 0 and standing on something */ \
     draw_order: i32 = 0, // Entities are sorted (ascending) by this before drawing */ \

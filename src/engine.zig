@@ -93,7 +93,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         /// The real time in seconds since program start
         pub var time_real: f64 = 0.0;
         var entity_vtab: []const EntityVtab(T) = undefined;
-        var entities: [ENTITIES_MAX]T = undefined;
+        var entities: [ENTITIES_MAX]*T = undefined;
         var entities_storage: [ENTITIES_MAX]T = undefined;
         var entities_len: usize = 0;
         var entity_unique_id: u16 = 0;
@@ -128,7 +128,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 img.imagesReset(init_images_mark);
                 // sound.reset(init_sounds_mark);
                 // bump.reset(init_bump_mark);
-                // entities.reset();
+                entitiesReset();
 
                 background_maps_len = 0;
                 collision_map = null;
@@ -272,13 +272,15 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     load();
                 }
             }
+
+            entitiesReset();
         }
 
         fn updateEntities() void {
             // Update all entities
             var i: usize = 0;
             while (i < entities_len) {
-                const ent = &entities[i];
+                const ent = entities[i];
                 updateEntity(ent);
 
                 if (!ent.base.is_alive) {
@@ -296,19 +298,21 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
 
             // Sort by x or y position - insertion sort
-            std.sort.heap(T, &entities, {}, cmpEntityPos);
+            std.sort.heap(*T, &entities, {}, cmpEntityPos);
 
             // Sweep touches
             // engine.perf.checks = 0;
             i = 0;
-            for (&entities) |*e1| {
+            for (entities) |e1| {
+                if (i == entities_len) break;
+
                 if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
                     e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
                 {
                     const max_pos = e1.base.pos.x + e1.base.size.x;
                     var j: usize = i + 1;
                     while (j < entities_len and entities[j].base.pos.x < max_pos) {
-                        const e2 = &entities[j];
+                        const e2 = entities[j];
                         // engine.perf.checks += 1;
 
                         if (entityIsTouching(e1, e2)) {
@@ -339,7 +343,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             return (g1 & g2) != 0;
         }
 
-        fn cmpEntityPos(context: void, a: T, b: T) bool {
+        fn cmpEntityPos(context: void, a: *T, b: *T) bool {
             _ = context;
             return a.base.pos.x > b.base.pos.x;
         }
@@ -552,19 +556,20 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             if (self) |me| {
                 return .{
                     .id = me.base.id,
-                    .index = @intCast(@intFromPtr(me) - @intFromPtr(&entities[0])),
+                    .index = me.base.index,
                 };
             }
             return entityRefNone();
         }
 
-        pub fn spawn(kind: anytype, pos: Vec2) T {
-            const ent = &entities[entities_len];
+        pub fn spawn(kind: anytype, pos: Vec2) *T {
+            const ent = entities[entities_len];
             entities_len += 1;
             entity_unique_id += 1;
             ent.* = T{
                 .base = .{
                     .id = entity_unique_id,
+                    .index = @truncate(entities_len - 1),
                     .is_alive = true,
                     .pos = pos,
                     .max_ground_normal = 0.69, // cosf(to_radians(46)),
@@ -578,7 +583,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             };
 
             initEntity(ent);
-            return ent.*;
+            return ent;
         }
 
         fn vtab(kind: anytype) EntityVtab(T) {
@@ -596,17 +601,21 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             var ba = alloc.BumpAllocator{};
             var list = std.ArrayList(EntityRef).init(ba.allocator());
             // FIXME:PERF: linear search
-            for (&entities) |*entity| {
+            var i: usize = 0;
+            for (entities) |entity| {
+                if (i == entities_len) break;
+
                 if (entity.kind == kind and entity.base.is_alive) {
                     list.append(entityRef(entity)) catch @panic("failed to append");
                 }
+                i += 1;
             }
 
             return list;
         }
 
         pub fn entityByRef(ref: EntityRef) ?*T {
-            const ent = &entities[ref.index];
+            const ent = &entities_storage[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
                 return ent;
             }
@@ -621,18 +630,18 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // for data that is not already mostly sorted.
             // TODO: var ba = alloc.BumpAllocator{};
             var ba = std.heap.GeneralPurposeAllocator(.{}){};
-            const draw_ents = ba.allocator().alloc(T, entities_len) catch @panic("failed to alloc");
+            const draw_ents = ba.allocator().alloc(*T, entities_len) catch @panic("failed to alloc");
             @memcpy(draw_ents[0..], entities[0..entities_len]);
 
-            std.sort.heap(T, draw_ents, {}, cmpEntity);
+            std.sort.heap(*T, draw_ents, {}, cmpEntity);
 
             for (0..entities_len) |i| {
-                const ent = &draw_ents[i];
+                const ent = draw_ents[i];
                 drawEntity(ent, vp);
             }
         }
 
-        fn cmpEntity(context: void, lhs: T, rhs: T) bool {
+        fn cmpEntity(context: void, lhs: *T, rhs: *T) bool {
             _ = context;
             return lhs.base.draw_order > rhs.base.draw_order;
         }
@@ -647,7 +656,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         pub fn loadLevel(json_path: []const u8) void {
             const root = platform.loadAssetJson(json_path);
 
-            // entities.reset();
+            entitiesReset();
             background_maps_len = 0;
             collision_map = null;
 
@@ -708,6 +717,17 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
             background_maps[background_maps_len] = map;
             background_maps_len += 1;
+        }
+
+        fn entitiesReset() void {
+            for (0..ENTITIES_MAX) |i| {
+                entities[i] = &entities_storage[i];
+            }
+            entities_len = 0;
+        }
+
+        fn entitiesCleanup() void {
+            entitiesReset();
         }
     };
 }

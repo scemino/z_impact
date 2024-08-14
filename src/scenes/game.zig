@@ -23,7 +23,7 @@ const engine = Engine(game.Entity, game.EntityKind);
 
 var map: Map = undefined;
 var game_over: bool = false;
-var player: Entity = undefined;
+var player: *Entity = undefined;
 // sound_source_t *sound_game_over;
 var backdrop: Image = undefined;
 var image: Image = undefined;

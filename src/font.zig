@@ -101,14 +101,17 @@ pub fn font(path: []const u8, definition_path: []const u8) *Font {
     fnt.letter_spacing = 0;
     fnt.color = types.white();
 
-    const def = platform.loadAssetJson(definition_path);
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const def = platform.loadAssetJson(definition_path, gpa.allocator());
+    defer def.deinit();
+    const obj = def.value.object;
     // error_if(def == NULL, "Couldn't load fnt definition json");
 
-    const metrics = def.object.get("metrics").?.array;
+    const metrics = obj.get("metrics").?.array;
 
-    fnt.first_char = @truncate(def.object.get("first_char").?.integer);
-    fnt.last_char = @truncate(def.object.get("last_char").?.integer);
-    fnt.line_height = @truncate(def.object.get("height").?.integer);
+    fnt.first_char = @truncate(obj.get("first_char").?.integer);
+    fnt.last_char = @truncate(obj.get("last_char").?.integer);
+    fnt.line_height = @truncate(obj.get("height").?.integer);
 
     const expected_chars: usize = @intCast(fnt.last_char - fnt.first_char);
 
@@ -129,6 +132,5 @@ pub fn font(path: []const u8, definition_path: []const u8) *Font {
         a += 7;
     }
 
-    // temp_free(def);
     return fnt;
 }

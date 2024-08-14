@@ -124,16 +124,16 @@ pub const TempAllocator = struct {
         var found = false;
         var remaining_max: usize = 0;
         var i: usize = 0;
-        for (0..temp_objects_len) |_| {
+        while (i < temp_objects_len) {
             if (temp_objects[i] == offset) {
                 temp_objects_len -= 1;
                 temp_objects[i] = temp_objects[temp_objects_len];
-                i -= 1;
+                i -%= 1;
                 found = true;
             } else if (temp_objects[i] > remaining_max) {
                 remaining_max = temp_objects[i];
             }
-            i += 1;
+            i +%= 1;
         }
         assert(found);
         temp_len = remaining_max;

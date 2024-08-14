@@ -9,6 +9,7 @@ const vec2i = types.vec2i;
 const ObjectMap = std.json.ObjectMap;
 const Array = std.json.Array;
 const Value = std.json.Value;
+const Parsed = std.json.Parsed;
 const TempAllocator = @import("allocator.zig").TempAllocator;
 const input = @import("input.zig");
 const Button = input.Button;
@@ -148,8 +149,7 @@ pub fn screenSize() Vec2i {
     return vec2i(sapp.width(), sapp.height());
 }
 
-pub fn loadAssetJson(name: []const u8) Value {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Value) {
     var file = std.fs.cwd().openFile(name, .{}) catch @panic("failed to load asset");
     defer file.close();
 
@@ -158,9 +158,10 @@ pub fn loadAssetJson(name: []const u8) Value {
     var temp_alloc = TempAllocator{};
     const buf = temp_alloc.allocator().alloc(u8, file_size) catch @panic("failed to load asset");
     _ = reader.readAll(buf) catch @panic("failed to load asset");
+    defer temp_alloc.allocator().free(buf);
 
-    const parsed = std.json.parseFromSlice(Value, gpa.allocator(), buf, .{}) catch @panic("error when parsing map");
-    return parsed.value;
+    const parsed = std.json.parseFromSlice(Value, allocator, buf, .{}) catch @panic("error when parsing map");
+    return parsed;
 }
 
 fn setFullscreen(fullscreen: bool) void {

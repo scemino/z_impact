@@ -45,7 +45,7 @@ pub const Image = struct {
         const file_size = (try file.stat()).size;
         const buf = try temp_alloc.allocator().alloc(u8, file_size);
         _ = try reader.readAll(buf);
-        // TODO defer temp.free(data);
+        defer temp_alloc.allocator().free(buf);
 
         var image = try qoi.decodeBuffer(temp_alloc.allocator(), buf);
         defer image.deinit(temp_alloc.allocator());

@@ -3,8 +3,11 @@ const Scene = @import("../scene.zig").Scene;
 const img = @import("../image.zig");
 const Image = @import("../image.zig").Image;
 const Map = @import("../map.zig").Map;
+const Font = @import("../font.zig").Font;
+const font = @import("../font.zig").font;
 const game = @import("../game.zig");
 const types = @import("../types.zig");
+const rgba = types.rgba;
 const vec2 = types.vec2;
 const vec2i = types.vec2i;
 const Rgba = types.Rgba;
@@ -23,6 +26,7 @@ var game_over: bool = false;
 var player: Entity = undefined;
 // sound_source_t *sound_game_over;
 var backdrop: Image = undefined;
+var image: Image = undefined;
 
 fn generate_row(row: usize) void {
     // Randomly generate a row of block for the map. This is a naive approach,
@@ -71,16 +75,17 @@ fn init() void {
     engine.addBackgroundMap(&map);
 
     player = engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16));
+
+    g.font = font("assets/font_04b03.qoi", "assets/font_04b03.json");
+    g.font.color = rgba(75, 84, 0, 255);
 }
 
 fn update() void {
-    if (input.pressed(p.A_START)) {
+    if (input.pressed(p.A_START))
         engine.setScene(&scene_game);
-    }
 
-    if (game_over) {
+    if (game_over)
         return;
-    }
 
     g.speed += @as(f32, @floatCast(ziengine.tick)) * (10.0 / g.speed);
     g.score += @as(f32, @floatCast(ziengine.tick)) * g.speed;
@@ -113,11 +118,11 @@ fn update() void {
     engine.sceneBaseUpdate();
 
     // Check for gameover
-    // const pp = player.base.pos.y - ziengine.viewport.y;
-    // if (pp > @as(f32, @floatFromInt(render.renderSize().y)) + 8.0 or pp < -32) {
-    //     game_over = true;
-    //     // sound_play(sound_game_over);
-    // }
+    const pp = player.base.pos.y - ziengine.viewport.y;
+    if (pp > @as(f32, @floatFromInt(render.renderSize().y)) + 8.0 or pp < -32) {
+        game_over = true;
+        // sound_play(sound_game_over);
+    }
 }
 
 fn draw() void {

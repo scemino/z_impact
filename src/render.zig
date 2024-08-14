@@ -9,7 +9,10 @@ const vec2 = types.vec2;
 const Vec2i = types.Vec2i;
 const sokol = @import("sokol");
 const sapp = sokol.app;
+const slog = sokol.log;
+const sg = sokol.gfx;
 const sgl = sokol.gl;
+const sglue = sokol.glue;
 
 const RENDER_ATLAS_SIZE = 64;
 const RENDER_ATLAS_GRID = 8;
@@ -35,6 +38,36 @@ var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;
 var screen_size: Vec2i = types.vec2i(0, 0);
+var pip: sgl.Pipeline = .{};
+var pass_action: sg.PassAction = .{};
+
+pub fn init() void {
+    sg.setup(.{
+        .environment = sglue.environment(),
+        .logger = .{ .func = slog.func },
+    });
+    // setup sokol-gl
+    sgl.setup(.{ .logger = .{ .func = slog.func } });
+    // default pass action
+    pass_action.colors[0] = .{
+        .load_action = sg.LoadAction.CLEAR,
+        .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+    };
+
+    var desc: sg.PipelineDesc = .{};
+    desc.colors[0].blend = .{
+        .enabled = true,
+        .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
+        .dst_factor_rgb = sg.BlendFactor.ONE_MINUS_SRC_ALPHA,
+    };
+    pip = sgl.makePipeline(desc);
+}
+
+pub fn cleanup() void {
+    sgl.destroyPipeline(pip);
+    sgl.shutdown();
+    sg.shutdown();
+}
 
 pub fn framePrepare() void {
     const dw = sapp.width();
@@ -42,6 +75,7 @@ pub fn framePrepare() void {
 
     sgl.viewport(0, 0, dw, dh, true);
     sgl.defaults();
+    sgl.loadPipeline(pip);
     sgl.matrixModeProjection();
     sgl.ortho(0, RENDER_WIDTH, RENDER_HEIGHT, 0.0, -1, 1);
     sgl.matrixModeModelview();
@@ -49,15 +83,18 @@ pub fn framePrepare() void {
 }
 
 pub fn frameEnd() void {
-    // TODO:
+    sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
+    sgl.draw();
+    sg.endPass();
+    sg.commit();
 }
 
 pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
-    // if (pos.x > logical_size.x or pos.y > logical_size.y or
-    //     pos.x + size.x < 0 or pos.y + size.y < 0)
-    // {
-    //     return;
-    // }
+    if (pos.x > @as(f32, @floatFromInt(logical_size.x)) or pos.y > @as(f32, @floatFromInt(logical_size.y)) or
+        pos.x + size.x < 0 or pos.y + size.y < 0)
+    {
+        return;
+    }
 
     // pos = mulf(pos, screen_scale);
     // size = mulf(size, screen_scale);

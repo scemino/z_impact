@@ -32,7 +32,7 @@ pub const Font = struct {
     // Internal state
     first_char: i32,
     last_char: i32,
-    image: ?Image,
+    image: Image,
     glyphs: []FontGlyph,
 
     /// Draw some text. \n starts a new line. pos is the "anchor" position of the
@@ -76,7 +76,7 @@ pub const Font = struct {
         while (c < text.len and text[c] != 0 and text[c] != '\n') {
             if (text[c] >= self.first_char and text[c] <= self.last_char) {
                 const g = &self.glyphs[@intCast(text[c] - self.first_char)];
-                self.image.?.drawEx(g.pos, g.size, pos.add(g.offset), g.size, self.color);
+                self.image.drawEx(g.pos, g.size, pos.add(g.offset), g.size, self.color);
                 pos.x += @as(f32, @floatFromInt(g.advance)) + @as(f32, @floatFromInt(self.letter_spacing));
             }
             c += 1;
@@ -96,8 +96,7 @@ const FontAlign = enum {
 /// Create a font with the given path to the image and path to the width_map.json
 pub fn font(path: []const u8, definition_path: []const u8) *Font {
     var ba = std.heap.GeneralPurposeAllocator(.{}){};
-    var fonts = ba.allocator().alloc(Font, 1) catch @panic("failed to alloc font");
-    var fnt = &fonts[0];
+    var fnt = ba.allocator().create(Font) catch @panic("failed to alloc font");
     fnt.image = Image.init(path) catch @panic("failed to alloc font image");
     fnt.letter_spacing = 0;
     fnt.color = types.white();

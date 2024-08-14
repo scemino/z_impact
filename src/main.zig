@@ -1,12 +1,12 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const sapp = sokol.app;
+const stm = sokol.time;
 const Engine = @import("engine.zig").Engine;
 const render = @import("render.zig");
 const types = @import("types.zig");
 const rgba = types.rgba;
 const vec2 = types.vec2;
-const stm = @import("sokol").time;
 const Map = @import("map.zig").Map;
 const entity = @import("entity.zig");
 const sgame = @import("scenes/game.zig");
@@ -15,6 +15,7 @@ const input = @import("input.zig");
 const g = @import("global.zig");
 const Font = @import("font.zig").Font;
 const platform = @import("platform.zig");
+const Image = @import("image.zig").Image;
 const font = @import("font.zig").font;
 const player = @import("entities/player.zig");
 const EntityVtab = @import("entity.zig").EntityVtab;
@@ -40,14 +41,14 @@ export fn init() void {
     input.bind(.INPUT_KEY_RIGHT, player.A_RIGHT);
     input.bind(.INPUT_KEY_RETURN, player.A_START);
 
-    g.font = font("assets/font_04b03.qoi", "assets/font_04b03.json");
-    g.font.color = rgba(75, 84, 0, 255);
+    // TODO: init font here
+    // g.font = font("assets/font_04b03.qoi", "assets/font_04b03.json");
+    // g.font.color = rgba(75, 84, 0, 255);
 
     engine.setScene(&sgame.scene_game);
 }
 
 export fn update() void {
-    render.framePrepare();
     engine.update();
 }
 

@@ -1,11 +1,5 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const sokol = @import("sokol");
-const sapp = sokol.app;
-const sg = sokol.gfx;
-const sgl = sokol.gl;
-const slog = sokol.log;
-const sglue = sokol.glue;
 const Vec2 = @import("types.zig").Vec2;
 const Vec2i = @import("types.zig").Vec2i;
 const vec2 = @import("types.zig").vec2;
@@ -70,9 +64,6 @@ var background_maps_len: u32 = 0;
 // The top left corner of the viewport. Internally just an offset when
 // drawing background_maps and entities.
 pub var viewport: Vec2 = .{ .x = 0, .y = 0 };
-
-// var pip: sgl.Pipeline = .{};
-var pass_action: sg.PassAction = .{};
 
 // Various infos about the last frame
 // struct {
@@ -183,7 +174,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     baseDraw();
                 }
 
-                frameEnd();
+                render.frameEnd();
                 // engine.perf.draw = (platform_now() - time_real_now) - engine.perf.update;
                 alloc.bumpReset(mark);
                 mark.index = 0xFFFFFFFF;
@@ -201,7 +192,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // main_cleanup();
             // input_cleanup();
             // sound_cleanup();
-            renderCleanup();
+            render.cleanup();
         }
 
         // Makes the scene_the current scene. This calls scene.cleanup() on the old
@@ -268,33 +259,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             collision_map = map;
         }
 
-        fn renderCleanup() void {
-            sgl.shutdown();
-            sg.shutdown();
-        }
-
         fn renderInit(avaiable_size: Vec2i) void {
-            sg.setup(.{
-                .environment = sglue.environment(),
-                .logger = .{ .func = slog.func },
-            });
-
-            // setup sokol-gl
-            sgl.setup(.{ .logger = .{ .func = slog.func } });
-
-            // default pass action
-            pass_action.colors[0] = .{
-                .load_action = sg.LoadAction.CLEAR,
-                .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
-            };
+            render.init();
             render.resize(avaiable_size);
-        }
-
-        fn frameEnd() void {
-            sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
-            sgl.draw();
-            sg.endPass();
-            sg.commit();
         }
 
         fn initEntities(vtabs: []const EntityVtab(T)) void {
@@ -322,10 +289,10 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                         const last = entities[entities_len];
                         entities[entities_len] = entities[i];
                         entities[i] = last;
-                        i -= 1;
+                        i -%= 1;
                     }
                 }
-                i += 1;
+                i +%= 1;
             }
 
             // Sort by x or y position - insertion sort
@@ -382,7 +349,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn updateEntity(entity: *T) void {
-            vtab(entity.kind).update.?(entity);
+            if (vtab(entity.kind).update) |upd| {
+                upd(entity);
+            }
         }
 
         pub fn drawEntity(entity: *T, vp: Vec2) void {
@@ -392,12 +361,16 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn touchEntity(e1: *T, e2: *T) void {
-            vtab(e1.kind).touch.?(e1, e2);
+            if (vtab(e1.kind).touch) |touch| {
+                touch(e1, e2);
+            }
         }
 
         pub fn killEntity(entity: *T) void {
             entity.base.is_alive = false;
-            vtab(entity.kind).kill.?(entity);
+            if (vtab(entity.kind).kill) |kill| {
+                kill(entity);
+            }
         }
 
         fn settingsEntity(e: *T, settings: ObjectMap) void {

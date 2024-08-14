@@ -111,3 +111,7 @@ pub const Rgba = struct {
 pub fn white() Rgba {
     return .{ .components = .{ 255, 255, 255, 255 } };
 }
+
+pub fn rgba(r: u8, g: u8, b: u8, a: u8) Rgba {
+    return .{ .components = .{ r, g, b, a } };
+}

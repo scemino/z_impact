@@ -10,11 +10,12 @@ pub fn scale(val: anytype, in_min: anytype, in_max: anytype, out_min: anytype, o
     return _out_min + ((out_max) - _out_min) * (((val) - _in_min) / ((in_max) - _in_min));
 }
 
+var r: std.rand.DefaultPrng = undefined;
 var rand: std.Random = undefined;
 
 /// Seed the random number generator to a particular state
 pub fn rand_seed(seed: u64) void {
-    var r = std.rand.DefaultPrng.init(seed);
+    r = std.rand.DefaultPrng.init(seed);
     rand = r.random();
 }
 

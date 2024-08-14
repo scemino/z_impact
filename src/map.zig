@@ -72,10 +72,8 @@ pub const Map = struct {
     /// }
     pub fn initFromJson(root: Value) Map {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        // const parsed = std.json.parseFromSlice(Value, gpa.allocator(), str, .{}) catch @panic("error when parsing map");
-        // const root = parsed.value;
 
-        // TODO: assert(!engine.isRunning());
+        assert(!engine.isRunning());
 
         var map: Map = undefined;
         map.anims = null;
@@ -196,7 +194,7 @@ pub const Map = struct {
     /// Set the frame time and animation sequence for a particular tile. You can
     /// only do this in your scene_init()
     pub fn setAnim(self: *Map, tile: u16, frame_time: f32, sequence: []const u16) void {
-        // assert(!engine.isRunning()); // Cannot set map animation during gameplay
+        assert(!engine.isRunning()); // Cannot set map animation during gameplay
         assert(sequence.len > 0); // Map animation has empty sequence
 
         if (tile > self.max_tile) {

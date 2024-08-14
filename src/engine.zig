@@ -7,6 +7,7 @@ const sgl = sokol.gl;
 const slog = sokol.log;
 const sglue = sokol.glue;
 const Vec2 = @import("types.zig").Vec2;
+const Vec2i = @import("types.zig").Vec2i;
 const vec2 = @import("types.zig").vec2;
 const shaders = @import("shaders.zig");
 const types = @import("types.zig");
@@ -108,8 +109,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         pub fn init(vtabs: []const EntityVtab(T)) void {
             time_real = platform.now();
-            // render_init(platform.screen_size());
-            renderInit();
+            renderInit(platform.screenSize());
             // sound_init(platform.samplerate());
             // platform_set_audio_mix_cb(sound_mix_stereo);
             // input_init();
@@ -273,7 +273,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             sg.shutdown();
         }
 
-        fn renderInit() void {
+        fn renderInit(avaiable_size: Vec2i) void {
             sg.setup(.{
                 .environment = sglue.environment(),
                 .logger = .{ .func = slog.func },
@@ -287,6 +287,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 .load_action = sg.LoadAction.CLEAR,
                 .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
             };
+            render.resize(avaiable_size);
         }
 
         fn frameEnd() void {
@@ -385,7 +386,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn drawEntity(entity: *T, vp: Vec2) void {
-            vtab(entity.kind).draw.?(entity, vp);
+            if (vtab(entity.kind).draw) |draw| {
+                draw(entity, vp);
+            }
         }
 
         fn touchEntity(e1: *T, e2: *T) void {
@@ -404,7 +407,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn collideEntity(e: *T, normal: Vec2, t: ?Trace) void {
-            vtab(e.kind).collide.?(e, normal, t);
+            if (vtab(e.kind).collide) |collide| {
+                collide(e, normal, t);
+            }
         }
 
         fn entityResolveCollision(a: *T, b: *T) void {
@@ -530,16 +535,51 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn entity_handle_trace_result(self: *T, t: Trace) void {
-            // TODO:
-            _ = self;
-            _ = t;
+            self.base.pos = t.pos;
+
+            if (t.tile == 0) {
+                return;
+            }
+
+            collideEntity(self, t.normal, t);
+
+            // If this entity is bouncy, calculate the velocity against the
+            // slope's normal (the dot product) and see if we want to bounce
+            // back.
+            if (self.base.restitution > 0) {
+                const vel_against_normal = self.base.vel.dot(t.normal);
+
+                if (@abs(vel_against_normal) * self.base.restitution > ENTITY_MIN_BOUNCE_VELOCITY) {
+                    const vn = t.normal.mulf(vel_against_normal * 2.0);
+                    self.base.vel = self.base.vel.sub(vn).mulf(self.base.restitution);
+                    return;
+                }
+            }
+
+            // If this game has gravity, we may have to set the on_ground flag.
+            if (gravity != 0 and t.normal.y < -self.base.max_ground_normal) {
+                self.base.on_ground = true;
+
+                // If we don't want to slide on slopes, we cheat a bit by
+                // fudging the y velocity.
+                if (t.normal.y < -self.base.min_slide_normal) {
+                    self.base.vel.y = self.base.vel.x * t.normal.x;
+                }
+            }
+
+            // Rotate the normal vector by 90° ([nx, ny] . [-ny, nx]) to get
+            // the slope vector and calculate the dot product with the velocity.
+            // This is the velocity with which we will slide along the slope.
+            const rotated_normal = vec2(-t.normal.y, t.normal.x);
+            const vel_along_normal = self.base.vel.dot(rotated_normal);
+            self.base.vel = rotated_normal.mulf(vel_along_normal);
         }
 
         fn entityRef(self: ?*T) EntityRef {
             if (self) |me| {
                 return .{
                     .id = me.base.id,
-                    .index = @intCast(@intFromPtr(me) - @intFromPtr(&entities_storage[0])),
+                    .index = @intCast(@intFromPtr(me) - @intFromPtr(&entities[0])),
                 };
             }
             return entityRefNone();
@@ -593,7 +633,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn entityByRef(ref: EntityRef) ?*T {
-            const ent = &entities_storage[ref.index];
+            const ent = &entities[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
                 return ent;
             }

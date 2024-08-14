@@ -15,13 +15,26 @@ const RENDER_ATLAS_SIZE = 64;
 const RENDER_ATLAS_GRID = 8;
 const RENDER_ATLAS_SIZE_PX = (RENDER_ATLAS_SIZE * RENDER_ATLAS_GRID);
 
+const RENDER_SCALE_NONE = 0;
+const RENDER_SCALE_DISCRETE = 1;
+const RENDER_SCALE_EXACT = 2;
+
+const RENDER_RESIZE_NONE = 0;
+const RENDER_RESIZE_WIDTH = 1;
+const RENDER_RESIZE_HEIGHT = 2;
+const RENDER_RESIZE_ANY = 3;
+
+const RENDER_RESIZE_MODE = RENDER_RESIZE_NONE;
+
 pub const RENDER_WIDTH = 64;
 pub const RENDER_HEIGHT = 96;
+pub const RENDER_SCALE_MODE = RENDER_SCALE_DISCRETE;
 
 var logical_size: Vec2i = types.vec2i(RENDER_WIDTH, RENDER_HEIGHT);
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;
+var screen_size: Vec2i = types.vec2i(0, 0);
 
 pub fn framePrepare() void {
     const dw = sapp.width();
@@ -30,7 +43,7 @@ pub fn framePrepare() void {
     sgl.viewport(0, 0, dw, dh, true);
     sgl.defaults();
     sgl.matrixModeProjection();
-    sgl.ortho(0, 240.0, 160.0, 0.0, -1, 1);
+    sgl.ortho(0, RENDER_WIDTH, RENDER_HEIGHT, 0.0, -1, 1);
     sgl.matrixModeModelview();
     sgl.loadIdentity();
 }
@@ -96,4 +109,35 @@ pub fn renderSize() Vec2i {
 pub fn snapPx(pos: Vec2) Vec2 {
     const sp = pos.mulf(screen_scale);
     return vec2(@round(sp.x), @round(sp.y)).mulf(inv_screen_scale);
+}
+
+pub fn resize(avaiable_size: Vec2i) void {
+    // Determine Zoom
+    if (RENDER_SCALE_MODE == RENDER_SCALE_NONE) {
+        screen_scale = 1;
+    } else {
+        screen_scale = @min(@as(f32, @floatFromInt(avaiable_size.x)) / @as(f32, @floatFromInt(RENDER_WIDTH)), @as(f32, @floatFromInt(avaiable_size.y)) / @as(f32, @floatFromInt(RENDER_HEIGHT)));
+
+        if (RENDER_SCALE_MODE == RENDER_SCALE_DISCRETE) {
+            screen_scale = @max(@floor(screen_scale), 0.5);
+        }
+    }
+
+    // Determine size
+    if ((RENDER_RESIZE_MODE & RENDER_RESIZE_WIDTH) != 0) {
+        screen_size.x = @max(avaiable_size.x, RENDER_WIDTH);
+    } else {
+        screen_size.x = @as(i32, @intCast(RENDER_WIDTH)) * @as(i32, @intFromFloat(screen_scale));
+    }
+
+    if ((RENDER_RESIZE_MODE & RENDER_RESIZE_HEIGHT) != 0) {
+        screen_size.y = @max(avaiable_size.y, RENDER_HEIGHT);
+    } else {
+        screen_size.y = @as(i32, @intCast(RENDER_HEIGHT)) * @as(i32, @intFromFloat(screen_scale));
+    }
+
+    logical_size.x = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.x)) / screen_scale));
+    logical_size.y = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.y)) / screen_scale));
+    inv_screen_scale = 1.0 / screen_scale;
+    // setScreen(screen_size);
 }

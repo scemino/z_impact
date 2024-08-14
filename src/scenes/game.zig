@@ -29,7 +29,8 @@ fn generate_row(row: usize) void {
     // that sometimes leaves the player hanging with no block to jump to. It's
     // random after all.
     for (0..8) |col| {
-        map.data[row * @as(usize, @intCast(map.size.x)) + col] = if (utils.rand_float(0, 1) > 0.93) 1 else 0;
+        const f = utils.rand_float(0, 1);
+        map.data[row * @as(usize, @intCast(map.size.x)) + col] = if (f > 0.93) 1 else 0;
     }
 }
 
@@ -93,8 +94,10 @@ fn update() void {
         player.base.pos.y -= 8;
         const coins = engine.entitiesByType(.coin);
         for (0..coins.items.len) |i| {
-            var c = engine.entityByRef(coins.items[i]);
-            c.?.base.pos.y -= 8;
+            const entity = engine.entityByRef(coins.items[i]);
+            if (entity) |e| {
+                e.base.pos.y -= 8;
+            }
         }
 
         // Move all tiles up one row
@@ -121,14 +124,16 @@ fn draw() void {
     backdrop.drawEx(vec2(0, 0), types.fromVec2i(backdrop.size), vec2(0, 0), types.fromVec2i(render.renderSize()), types.white());
 
     if (game_over) {
-        // font_draw(g.font, vec2(render.renderSize().x / 2, 32), "Game Over!", .FONT_ALIGN_CENTER);
-        // font_draw(g.font, vec2(render.renderSize().x / 2, 48), "Press Enter", .FONT_ALIGN_CENTER);
-        // font_draw(g.font, vec2(render.renderSize().x / 2, 56), "to Restart", .FONT_ALIGN_CENTER);
+        g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 32.0), "Game Over!", .FONT_ALIGN_CENTER);
+        g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 48.0), "Press Enter", .FONT_ALIGN_CENTER);
+        g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 56.0), "to Restart", .FONT_ALIGN_CENTER);
     } else {
         engine.baseDraw();
     }
 
-    // font_draw(g.font, vec2(render_size().x - 2, 2), str_format("%d", g.score), FONT_ALIGN_RIGHT);
+    var buf: [64]u8 = undefined;
+    const text = std.fmt.bufPrint(&buf, "{d}", .{@as(i32, @intFromFloat(g.score))}) catch @panic("failed to format score");
+    g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) - 2.0, 2.0), text, .FONT_ALIGN_RIGHT);
 }
 
 pub var scene_game: Scene = .{

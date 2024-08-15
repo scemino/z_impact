@@ -193,7 +193,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             entitiesCleanup();
             // main_cleanup();
             // input_cleanup();
-            // sound_cleanup();
+            snd.cleanup();
             render.cleanup();
         }
 
@@ -657,8 +657,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             // FIXME: this copies the entity array - which is sorted by pos.x/y and
             // sorts it again by draw_order. It's using insertion sort, which is slow
             // for data that is not already mostly sorted.
-            // TODO: var ba = alloc.BumpAllocator{};
-            var ba = std.heap.GeneralPurposeAllocator(.{}){};
+            var ba = alloc.BumpAllocator{};
             const draw_ents = ba.allocator().alloc(*T, entities_len) catch @panic("failed to alloc");
             @memcpy(draw_ents[0..], entities[0..entities_len]);
 

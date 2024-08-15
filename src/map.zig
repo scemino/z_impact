@@ -121,8 +121,7 @@ pub const Map = struct {
     pub fn initWithData(tile_size: u16, size: Vec2i, data: ?[]u16) Map {
         assert(!engine.is_running); // "Cannot create map during gameplay");
 
-        // TODO: var ba = alloc.BumpAllocator{};
-        var ba = std.heap.GeneralPurposeAllocator(.{}){};
+        var ba = alloc.BumpAllocator{};
         const map_data = if (data) |d| d else ba.allocator().alloc(u16, @intCast(size.x * size.y)) catch @panic("failed to alloc");
         @memset(map_data, 0);
         return .{
@@ -200,8 +199,7 @@ pub const Map = struct {
         if (tile > self.max_tile) {
             return;
         }
-        // TODO: var ba = alloc.BumpAllocator{};
-        var ba = std.heap.GeneralPurposeAllocator(.{}){};
+        var ba = alloc.BumpAllocator{};
         if (self.anims == null) {
             const anims = ba.allocator().alloc(?*MapAnimDef, self.max_tile) catch @panic("error when setting map animation");
             @memset(anims, null);

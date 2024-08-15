@@ -1,22 +1,21 @@
 const std = @import("std");
+const zi = @import("zimpact");
 const game = @import("../game.zig");
-const ett = @import("../entity.zig");
+const g = @import("../global.zig");
+const ett = zi.entity;
 const EntityVtab = ett.EntityVtab;
 const Entity = game.Entity;
-const Image = @import("../image.zig").Image;
-const types = @import("../types.zig");
-const animDef = @import("../anim.zig").animDef;
-const AnimDef = @import("../anim.zig").AnimDef;
-const anim = @import("../anim.zig").anim;
-const Vec2i = types.Vec2i;
-const vec2 = types.vec2;
-const Vec2 = types.Vec2;
-const vec2i = types.vec2i;
-const Engine = @import("../engine.zig").Engine;
-const engine = Engine(game.Entity, game.EntityKind);
-const ziengine = @import("../engine.zig");
-const g = @import("../global.zig");
-const snd = @import("../sound.zig");
+const Image = zi.Image;
+const animDef = zi.animDef;
+const AnimDef = zi.AnimDef;
+const anim = zi.anim;
+const Vec2i = zi.Vec2i;
+const vec2 = zi.vec2;
+const Vec2 = zi.Vec2;
+const vec2i = zi.vec2i;
+const engine = zi.engine;
+const snd = zi.sound;
+const Engine = zi.Engine(game.Entity, game.EntityKind);
 
 var anim_idle: AnimDef = undefined;
 var sound_collect: *snd.SoundSource = undefined;
@@ -36,8 +35,8 @@ fn init(self: *Entity) void {
 }
 
 fn update(self: *Entity) void {
-    if ((self.base.pos.y - ziengine.viewport.y) < -32) {
-        engine.killEntity(self);
+    if ((self.base.pos.y - engine.viewport.y) < -32) {
+        Engine.killEntity(self);
     }
 }
 
@@ -45,7 +44,7 @@ fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
     snd.play(sound_collect);
-    engine.killEntity(self);
+    Engine.killEntity(self);
 }
 
 pub var vtab: EntityVtab(Entity) = .{

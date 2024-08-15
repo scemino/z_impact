@@ -1,26 +1,26 @@
 const std = @import("std");
-const Scene = @import("../scene.zig").Scene;
-const img = @import("../image.zig");
-const Image = @import("../image.zig").Image;
-const Map = @import("../map.zig").Map;
-const Font = @import("../font.zig").Font;
-const font = @import("../font.zig").font;
+const zi = @import("zimpact");
+const img = zi.img;
+const Image = zi.Image;
+const Map = zi.Map;
+const Font = zi.Font;
+const font = zi.font;
+const rgba = zi.rgba;
+const vec2 = zi.vec2;
+const vec2i = zi.vec2i;
+const Rgba = zi.Rgba;
+const ziengine = zi.Engine;
+const render = zi.render;
+const utils = zi.utils;
+const Engine = zi.Engine(game.Entity, game.EntityKind);
+const engine = zi.engine;
+const snd = zi.sound;
+const Scene = zi.Scene;
+const input = zi.input;
 const game = @import("../game.zig");
-const types = @import("../types.zig");
-const rgba = types.rgba;
-const vec2 = types.vec2;
-const vec2i = types.vec2i;
-const Rgba = types.Rgba;
-const Entity = game.Entity;
-const ziengine = @import("../engine.zig");
-const render = @import("../render.zig");
-const utils = @import("../utils.zig");
 const g = @import("../global.zig");
-const input = @import("../input.zig");
 const p = @import("../entities/player.zig");
-const Engine = @import("../engine.zig").Engine;
-const engine = Engine(game.Entity, game.EntityKind);
-const snd = @import("../sound.zig");
+const Entity = game.Entity;
 
 var map: Map = undefined;
 var game_over: bool = false;
@@ -47,16 +47,16 @@ fn place_coin(row: i32) void {
                 @floatFromInt(x * map.tile_size + 1),
                 @floatFromInt((row - 2) * map.tile_size + 2),
             );
-            _ = engine.spawn(.coin, pos);
+            _ = Engine.spawn(.coin, pos);
             return;
         }
     }
 }
 
 fn init() void {
-    utils.rand_seed(@intFromFloat(engine.time_real * 10000000.0));
+    utils.rand_seed(@intFromFloat(Engine.time_real * 10000000.0));
 
-    engine.gravity = 240;
+    Engine.gravity = 240;
     g.score = 0;
     g.speed = 1;
     game_over = false;
@@ -72,10 +72,10 @@ fn init() void {
     }
 
     // The map is used as CollisionMap AND BackgroundMap
-    engine.setCollisionMap(&map);
-    engine.addBackgroundMap(&map);
+    Engine.setCollisionMap(&map);
+    Engine.addBackgroundMap(&map);
 
-    player = engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16));
+    player = Engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16));
 
     g.font = font("assets/font_04b03.qoi", "assets/font_04b03.json");
     g.font.color = rgba(75, 84, 0, 255);
@@ -83,24 +83,24 @@ fn init() void {
 
 fn update() void {
     if (input.pressed(p.A_START))
-        engine.setScene(&scene_game);
+        Engine.setScene(&scene_game);
 
     if (game_over)
         return;
 
-    g.speed += @as(f32, @floatCast(ziengine.tick)) * (10.0 / g.speed);
-    g.score += @as(f32, @floatCast(ziengine.tick)) * g.speed;
-    ziengine.viewport.y += @as(f32, @floatCast(ziengine.tick)) * g.speed;
+    g.speed += @as(f32, @floatCast(engine.tick)) * (10.0 / g.speed);
+    g.score += @as(f32, @floatCast(engine.tick)) * g.speed;
+    engine.viewport.y += @as(f32, @floatCast(engine.tick)) * g.speed;
 
     // Do we need a new row?
-    if (ziengine.viewport.y > 40) {
+    if (engine.viewport.y > 40) {
 
         // Move screen and entities one tile up
-        ziengine.viewport.y -= 8;
+        engine.viewport.y -= 8;
         player.base.pos.y -= 8;
-        const coins = engine.entitiesByType(.coin);
+        const coins = Engine.entitiesByType(.coin);
         for (coins.items) |coin| {
-            const entity = engine.entityByRef(coin);
+            const entity = Engine.entityByRef(coin);
             entity.?.base.pos.y -= 8;
         }
 
@@ -114,10 +114,10 @@ fn update() void {
         }
     }
 
-    engine.sceneBaseUpdate();
+    Engine.sceneBaseUpdate();
 
     // Check for gameover
-    const pp = player.base.pos.y - ziengine.viewport.y;
+    const pp = player.base.pos.y - engine.viewport.y;
     if (pp > @as(f32, @floatFromInt(render.renderSize().y)) + 8.0 or pp < -32) {
         game_over = true;
         snd.play(sound_game_over);
@@ -125,14 +125,14 @@ fn update() void {
 }
 
 fn draw() void {
-    backdrop.drawEx(vec2(0, 0), types.fromVec2i(backdrop.size), vec2(0, 0), types.fromVec2i(render.renderSize()), types.white());
+    backdrop.drawEx(vec2(0, 0), zi.fromVec2i(backdrop.size), vec2(0, 0), zi.fromVec2i(render.renderSize()), zi.white());
 
     if (game_over) {
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 32.0), "Game Over!", .FONT_ALIGN_CENTER);
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 48.0), "Press Enter", .FONT_ALIGN_CENTER);
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 56.0), "to Restart", .FONT_ALIGN_CENTER);
     } else {
-        engine.baseDraw();
+        Engine.baseDraw();
     }
 
     var buf: [64]u8 = undefined;

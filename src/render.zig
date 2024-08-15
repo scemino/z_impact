@@ -41,6 +41,12 @@ var screen_size: Vec2i = types.vec2i(0, 0);
 var pip: sgl.Pipeline = .{};
 var pass_action: sg.PassAction = .{};
 
+/// A renderer is responsible for drawing on the screen. Images, Fonts and
+/// Animations ulitmately use the render_* functions to be drawn.
+/// Different renderer backends can be implemented by supporting just a handful
+/// of functions.
+///
+/// Called by the platform
 pub fn init() void {
     sg.setup(.{
         .environment = sglue.environment(),
@@ -63,6 +69,7 @@ pub fn init() void {
     pip = sgl.makePipeline(desc);
 }
 
+/// Called by the platform
 pub fn cleanup() void {
     sgl.destroyPipeline(pip);
     sgl.shutdown();
@@ -89,6 +96,8 @@ pub fn frameEnd() void {
     sg.commit();
 }
 
+/// Draws a rect with the given logical position, size, texture, uv-coords and
+/// color, transformed by the current transform stack
 pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
     if (pos.x > @as(f32, @floatFromInt(logical_size.x)) or pos.y > @as(f32, @floatFromInt(logical_size.y)) or
         pos.x + size.x < 0 or pos.y + size.y < 0)
@@ -119,35 +128,44 @@ pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_
     drawQuad(q, texture_handle);
 }
 
+/// Push the transform stack
 pub fn push() void {
     sgl.pushMatrix();
 }
 
+/// Pop the transform stack
 pub fn pop() void {
     sgl.popMatrix();
 }
 
+/// Translate; can only be called if stack was pushed at least once
 pub fn translate(t: Vec2) void {
     sgl.translate(t.x, t.y, 0.0);
 }
 
+/// Scale; can only be called if stack was pushed at least once
 pub fn scale(t: Vec2) void {
     sgl.scale(t.x, t.y, 1.0);
 }
 
+/// Rotate; can only be called if stack was pushed at least once
 pub fn rotate(rotation: f32) void {
     sgl.rotate(rotation, 0.0, 0.0, 1.0);
 }
 
+/// Return the logical size
 pub fn renderSize() Vec2i {
     return logical_size;
 }
 
+/// Returns a logical position, snapped to real screen pixels
 pub fn snapPx(pos: Vec2) Vec2 {
     const sp = pos.mulf(screen_scale);
     return vec2(@round(sp.x), @round(sp.y)).mulf(inv_screen_scale);
 }
 
+/// Resize the logical size according to the available window size and the scale
+/// and resize mode
 pub fn resize(avaiable_size: Vec2i) void {
     // Determine Zoom
     if (RENDER_SCALE_MODE == RENDER_SCALE_NONE) {

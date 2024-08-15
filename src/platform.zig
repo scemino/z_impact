@@ -13,6 +13,7 @@ const Value = std.json.Value;
 const Parsed = std.json.Parsed;
 const TempAllocator = @import("allocator.zig").TempAllocator;
 const input = @import("input.zig");
+const render = @import("render.zig");
 const Button = input.Button;
 
 var platform_output_samplerate: u32 = 44100;
@@ -145,30 +146,35 @@ fn keyboard_map_init() [349]Button {
     return btns;
 }
 
+// Called by the platform
 pub fn init() void {
     saudio.setup(.{
         .sample_rate = @intCast(platform_output_samplerate),
         .buffer_frames = 1024,
         .num_channels = 2,
-        .stream_cb = platform_audio_callback,
+        .stream_cb = platformAudioCallback,
     });
 
     // Might be different from requested rate
     platform_output_samplerate = @intCast(saudio.sampleRate());
 }
 
+/// Return the current time in seconds since program start
 pub fn now() f64 {
     return stm.sec(stm.now());
 }
 
+/// Return the current size of the window or render area in real pixels
 pub fn screenSize() Vec2i {
     return vec2i(sapp.width(), sapp.height());
 }
 
+/// Returns the samplerate of the audio output
 pub fn samplerate() u32 {
     return platform_output_samplerate;
 }
 
+/// Load a file into temp memory. Must be freed via temp_free()
 pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
     var file = std.fs.cwd().openFile(name, .{}) catch @panic("failed to load asset");
     defer file.close();
@@ -181,6 +187,7 @@ pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
     return buf;
 }
 
+/// Load a json file into temp memory. Must be freed via temp_free()
 pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Value) {
     var temp_alloc = TempAllocator{};
     const buf = loadAsset(name, temp_alloc.allocator());
@@ -190,7 +197,13 @@ pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Valu
     return parsed;
 }
 
-fn setFullscreen(fullscreen: bool) void {
+/// Sets the audio mix callback; done by the engine
+pub fn setAudioMixCb(cb: *const fn (buffer: []f32) void) void {
+    audio_callback = cb;
+}
+
+/// Set the fullscreen mode
+pub fn setFullscreen(fullscreen: bool) void {
     if (fullscreen == sapp.isFullscreen()) {
         return;
     }
@@ -199,12 +212,14 @@ fn setFullscreen(fullscreen: bool) void {
     sapp.showMouse(!fullscreen);
 }
 
-pub export fn platform_handle_event(ev: [*c]const sapp.Event) void {
+/// Whether the program is in fullscreen mode
+pub fn getFullscreen() bool {
+    return sapp.isFullscreen();
+}
+
+pub export fn platformHandleEvent(ev: [*c]const sapp.Event) void {
     // Detect ALT+Enter press to toggle fullscreen
-    if (ev.*.type == .KEY_DOWN and
-        ev.*.key_code == .ENTER and
-        ((ev.*.modifiers & sapp.modifier_alt) != 0))
-    {
+    if (ev.*.type == .KEY_DOWN and ev.*.key_code == .ENTER and ((ev.*.modifiers & sapp.modifier_alt) != 0)) {
         setFullscreen(!sapp.isFullscreen());
     }
 
@@ -221,51 +236,41 @@ pub export fn platform_handle_event(ev: [*c]const sapp.Event) void {
     // TODO: not implemented by sokol_app itself
 
     // Mouse buttons
-    // else if (
-    // 	ev.type == SAPP_EVENTTYPE_MOUSE_DOWN or
-    // 	ev.type == SAPP_EVENTTYPE_MOUSE_UP
-    // ) {
-    // 	button_t button = INPUT_BUTTON_NONE;
-    // 	switch (ev.mouse_button) {
-    // 		case SAPP_MOUSEBUTTON_LEFT: button = INPUT_MOUSE_LEFT; break;
-    // 		case SAPP_MOUSEBUTTON_MIDDLE: button = INPUT_MOUSE_MIDDLE; break;
-    // 		case SAPP_MOUSEBUTTON_RIGHT: button = INPUT_MOUSE_RIGHT; break;
-    // 		default: break;
-    // 	}
-    // 	if (button != INPUT_BUTTON_NONE) {
-    // 		float state = ev.type == SAPP_EVENTTYPE_MOUSE_DOWN ? 1.0 : 0.0;
-    // 		input_set_button_state(button, state);
-    // 	}
-    // }
+    else if (ev.*.type == .MOUSE_DOWN or ev.*.type == .MOUSE_UP) {
+        const button: Button = switch (ev.*.mouse_button) {
+            .LEFT => .INPUT_MOUSE_LEFT,
+            .MIDDLE => .INPUT_MOUSE_MIDDLE,
+            .RIGHT => .INPUT_MOUSE_RIGHT,
+            else => .INPUT_INVALID,
+        };
+        if (button != .INPUT_INVALID) {
+            const state: f32 = if (ev.*.type == .MOUSE_DOWN) 1.0 else 0.0;
+            input.setButtonState(button, state);
+        }
+    }
 
     // // Mouse wheel
-    // else if (ev.type == SAPP_EVENTTYPE_MOUSE_SCROLL) {
-    // 	button_t button = ev.scroll_y > 0
-    // 		? INPUT_MOUSE_WHEEL_UP
-    // 		: INPUT_MOUSE_WHEEL_DOWN;
-    // 	input_set_button_state(button, 1.0);
-    // 	input_set_button_state(button, 0.0);
-    // }
+    else if (ev.*.type == .MOUSE_SCROLL) {
+        const button: Button = if (ev.*.scroll_y > 0) .INPUT_MOUSE_WHEEL_UP else .INPUT_MOUSE_WHEEL_DOWN;
+        input.setButtonState(button, 1.0);
+        input.setButtonState(button, 0.0);
+    }
 
     // // Mouse move
-    // else if (ev.type == SAPP_EVENTTYPE_MOUSE_MOVE) {
-    // 	input_set_mouse_pos(ev.mouse_x, ev.mouse_y);
-    // }
+    else if (ev.*.type == .MOUSE_MOVE) {
+        input.setMousePos(@intFromFloat(ev.*.mouse_x), @intFromFloat(ev.*.mouse_y));
+    }
 
     // // Window Events
-    // if (ev.type == SAPP_EVENTTYPE_RESIZED) {
-    // 	engine_resize(vec2i(ev.window_width, ev.window_height));
-    // }
+    if (ev.*.type == .RESIZED) {
+        render.resize(vec2i(ev.*.window_width, ev.*.window_height));
+    }
 }
 
-fn platform_audio_callback(buffer: [*c]f32, num_frames: i32, num_channels: i32) callconv(.C) void {
+fn platformAudioCallback(buffer: [*c]f32, num_frames: i32, num_channels: i32) callconv(.C) void {
     if (audio_callback) |cb| {
         cb(buffer[0..@intCast(num_frames * num_channels)]);
     } else {
         @memset(buffer[0..@intCast(num_frames * num_channels)], 0);
     }
-}
-
-pub fn setAudioMixCb(cb: *const fn (buffer: []f32) void) void {
-    audio_callback = cb;
 }

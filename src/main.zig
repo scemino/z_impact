@@ -61,7 +61,7 @@ pub fn main() void {
         .init_cb = init,
         .frame_cb = update,
         .cleanup_cb = cleanup,
-        .event_cb = &platform.platform_handle_event,
+        .event_cb = &platform.platformHandleEvent,
         .window_title = "Z Impact Game",
         .width = render.RENDER_WIDTH * 5,
         .height = render.RENDER_HEIGHT * 5,

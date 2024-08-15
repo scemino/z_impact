@@ -1,4 +1,7 @@
 const std = @import("std");
+const types = @import("types");
+const Vec2 = types.Vec2;
+const vec2 = types.vec2;
 const assert = std.debug.assert;
 
 const INPUT_ACTION_MAX = 32;
@@ -150,28 +153,51 @@ var actions_state: [INPUT_BUTTON_MAX]f32 = [1]f32{0} ** INPUT_BUTTON_MAX;
 var actions_pressed: [INPUT_BUTTON_MAX]bool = [1]bool{false} ** INPUT_BUTTON_MAX;
 var actions_released: [INPUT_BUTTON_MAX]bool = [1]bool{false} ** INPUT_BUTTON_MAX;
 var bindings: [INPUT_BUTTON_MAX]u8 = [1]u8{0} ** INPUT_BUTTON_MAX;
+var mouse_x: i32 = 0;
+var mouse_y: i32 = 0;
 
-// Returns the current state for an action. For discrete buttons and keyboard
-// keys, this is either 0 or 1. For analog input, it is anywhere between
-// 0..1.
+/// Returns the current state for an action. For discrete buttons and keyboard
+/// keys, this is either 0 or 1. For analog input, it is anywhere between
+/// 0..1.
 pub fn statef(action: u8) f32 {
     assert(action < INPUT_ACTION_MAX); // "Invalid input action %d", action;
     return actions_state[action];
 }
 
+/// Returns the current state for an action. For discrete buttons and keyboard
+/// keys, this is either false or true.
 pub fn stateb(action: u8) bool {
     return statef(action) > 0;
 }
 
+/// Whether a button for that action was just pressed down before this frame
 pub fn pressed(action: u8) bool {
     return actions_pressed[action];
 }
 
+/// Whether a button for that action was just released bofere this frame
+pub fn released(action: u8) bool {
+    return actions_released[action];
+}
+
+/// The current mouse position in real pixels
+pub fn mousePos() Vec2 {
+    return vec2(mouse_x, mouse_y);
+}
+
+/// Called by the platform
+pub fn setMousePos(x: i32, y: i32) void {
+    mouse_x = x;
+    mouse_y = y;
+}
+
+/// Called by the platform
 pub fn clear() void {
     actions_pressed = [1]bool{false} ** INPUT_BUTTON_MAX;
     actions_released = [1]bool{false} ** INPUT_BUTTON_MAX;
 }
 
+/// Called by the platform
 pub fn setButtonState(button: Button, s: f32) void {
     var state = s;
     const action = bindings[@intCast(@intFromEnum(button))];
@@ -199,10 +225,25 @@ pub fn setButtonState(button: Button, s: f32) void {
     // }
 }
 
+/// Bind a key/button to an action. Multiple buttons can be bound to the same
+/// action, but one key/button can only be bound to one action. Action is just
+/// a uint8_t identifier, usually from an enum in your game.
 pub fn bind(button: Button, action: u8) void {
     // error_if(button < 0 || button >= INPUT_BUTTON_MAX, "Invalid input button %d", button);
     // error_if(action < 0 || action >= INPUT_ACTION_MAX, "Invalid input action %d", action);
 
     actions_state[action] = 0;
     bindings[@intCast(@intFromEnum(button))] = action;
+}
+
+/// Unbind a key/button
+pub fn unbind(button: Button) void {
+    bindings[button] = INPUT_ACTION_NONE;
+}
+
+/// Unbind all keys/buttons
+pub fn unbindAll() void {
+    for (0..INPUT_BUTTON_MAX) |i| {
+        unbind(@enumFromInt(i));
+    }
 }

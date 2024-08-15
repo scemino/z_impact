@@ -98,7 +98,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         var entities_len: usize = 0;
         var entity_unique_id: u16 = 0;
 
-        pub fn init(vtabs: []const EntityVtab(T)) void {
+        pub fn init(vtabs: []EntityVtab(T)) void {
             time_real = platform.now();
             renderInit(platform.screenSize());
             // sound_init(platform.samplerate());
@@ -264,11 +264,36 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             render.resize(avaiable_size);
         }
 
-        fn initEntities(vtabs: []const EntityVtab(T)) void {
+        // zig fmt: off
+        fn noop_load() void {}
+        fn noop_init(self: *T) void { _ = self; }
+        fn noop_kill(self: *T) void { _ = self; }
+        fn noop_settings(self: *T, def: ObjectMap) void { _ = self; _ = def; }
+        fn noop_touch(self: *T, other: *T) void {_ = self; _ = other; }
+        fn noop_collide(self: *T, normal: Vec2, t: ?Trace) void { _ = self; _ = normal; _ = t; }
+        fn noop_trigger(self: *T, other: *T) void { _ = self; _ = other; }
+        // fn noop_message(self: *T, entity_message_t message, void *data) void {}
+        // zig fmt: on
+
+        fn initEntities(vtabs: []EntityVtab(T)) void {
             entity_vtab = vtabs;
-            for (0..entity_vtab.len) |i| {
-                const value = entity_vtab[i];
-                if (value.load) |load| {
+            for (0..vtabs.len) |i| {
+                const e_vtab = &vtabs[i];
+                // zig fmt: off
+                if ( e_vtab.load == null )     { vtabs[i].load = noop_load; }
+                if ( e_vtab.init == null )     { vtabs[i].init = noop_init; }
+                if ( e_vtab.settings == null ) { vtabs[i].settings = noop_settings; }
+                if ( e_vtab.update == null )   { vtabs[i].update = baseUpdate; }
+                if ( e_vtab.draw == null )     { vtabs[i].draw = entityBaseDraw; }
+                if ( e_vtab.kill == null )     { vtabs[i].kill = noop_kill; }
+                if ( e_vtab.touch == null )    { vtabs[i].touch = noop_touch; }
+                if ( e_vtab.collide == null )  { vtabs[i].collide = noop_collide; }
+                // if ( e_vtab.damage == null )   { vtabs[i].damage = baseDamage; }
+                if ( e_vtab.trigger == null )  { vtabs[i].trigger = noop_trigger; }
+                // if ( e_vtab.message == null )  { vtabs[i].message = noop_message; }
+                // zig fmt: on
+
+                if (e_vtab.load) |load| {
                     load();
                 }
             }

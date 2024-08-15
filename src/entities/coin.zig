@@ -40,10 +40,6 @@ fn update(self: *Entity) void {
     }
 }
 
-fn draw(self: *Entity, vp: Vec2) void {
-    engine.entityBaseDraw(self, vp);
-}
-
 fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
@@ -55,6 +51,5 @@ pub var vtab: EntityVtab(Entity) = .{
     .load = load,
     .init = init,
     .update = update,
-    .draw = draw,
     .touch = touch,
 };

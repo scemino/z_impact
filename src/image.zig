@@ -24,10 +24,10 @@ pub const Image = struct {
 
     /// Load an image from a QOI file. Calling this function multiple times with the
     /// same path will return the same, cached image instance,
-    pub fn init(path: []const u8) !Image {
+    pub fn init(path: []const u8) !*Image {
         for (0..images_len) |i| {
             if (std.mem.eql(u8, path, image_paths[i])) {
-                return images[i];
+                return &images[i];
             }
         }
 
@@ -57,7 +57,7 @@ pub const Image = struct {
 
         images[images_len] = .{ .size = size, .texture = texture };
         images_len += 1;
-        return images[images_len - 1];
+        return &images[images_len - 1];
     }
 
     pub fn draw(self: Image, pos: Vec2) void {

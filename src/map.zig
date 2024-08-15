@@ -41,7 +41,7 @@ pub const Map = struct {
     foreground: bool = false,
 
     // The tileset image to use when drawing. Might be NULL for collision maps
-    tileset: ?img.Image = null,
+    tileset: ?*img.Image = null,
 
     // Animations for certain tiles when drawing. Use map_set_anim() to add
     // animations.

@@ -188,7 +188,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn cleanup() void {
-            // entities_cleanup();
+            entitiesCleanup();
             // main_cleanup();
             // input_cleanup();
             // sound_cleanup();
@@ -298,7 +298,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
 
             // Sort by x or y position - insertion sort
-            std.sort.heap(*T, &entities, {}, cmpEntityPos);
+            std.sort.heap(*T, entities[0..entities_len], {}, cmpEntityPos);
 
             // Sweep touches
             // engine.perf.checks = 0;
@@ -554,10 +554,14 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         fn entityRef(self: ?*T) EntityRef {
             if (self) |me| {
-                return .{
-                    .id = me.base.id,
-                    .index = me.base.index,
-                };
+                for (0..entities_len) |i| {
+                    if (entities[i] == me) {
+                        return .{
+                            .id = me.base.id,
+                            .index = @intCast(i),
+                        };
+                    }
+                }
             }
             return entityRefNone();
         }
@@ -569,7 +573,6 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             ent.* = T{
                 .base = .{
                     .id = entity_unique_id,
-                    .index = @truncate(entities_len - 1),
                     .is_alive = true,
                     .pos = pos,
                     .max_ground_normal = 0.69, // cosf(to_radians(46)),
@@ -602,9 +605,8 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             var list = std.ArrayList(EntityRef).init(ba.allocator());
             // FIXME:PERF: linear search
             var i: usize = 0;
-            for (entities) |entity| {
-                if (i == entities_len) break;
-
+            while (i < entities_len) {
+                const entity = entities[i];
                 if (entity.kind == kind and entity.base.is_alive) {
                     list.append(entityRef(entity)) catch @panic("failed to append");
                 }
@@ -615,7 +617,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn entityByRef(ref: EntityRef) ?*T {
-            const ent = &entities_storage[ref.index];
+            const ent = entities[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
                 return ent;
             }
@@ -633,7 +635,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             const draw_ents = ba.allocator().alloc(*T, entities_len) catch @panic("failed to alloc");
             @memcpy(draw_ents[0..], entities[0..entities_len]);
 
-            std.sort.heap(*T, draw_ents, {}, cmpEntity);
+            std.sort.heap(*T, draw_ents[0..entities_len], {}, cmpEntity);
 
             for (0..entities_len) |i| {
                 const ent = draw_ents[i];

@@ -21,12 +21,11 @@ pub const A_RIGHT: u8 = 2;
 pub const A_START: u8 = 4;
 
 var anim_idle: AnimDef = undefined;
-var sheet: Image = undefined;
-var hints: Image = undefined;
+var hints: *Image = undefined;
 
 fn load() void {
-    sheet = Image.init("assets/player.qoi") catch @panic("failed to init image");
-    anim_idle = animDef(&sheet, vec2i(4, 4), 1.0, &[_]u16{0}, true);
+    const sheet = Image.init("assets/player.qoi") catch @panic("failed to init image");
+    anim_idle = animDef(sheet, vec2i(4, 4), 1.0, &[_]u16{0}, true);
     // sound_bounce = sound_source("assets/bounce.qoa");
     hints = Image.init("assets/hints.qoi") catch @panic("failed to init image");
 }

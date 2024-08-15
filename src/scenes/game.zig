@@ -25,8 +25,7 @@ var map: Map = undefined;
 var game_over: bool = false;
 var player: *Entity = undefined;
 // sound_source_t *sound_game_over;
-var backdrop: Image = undefined;
-var image: Image = undefined;
+var backdrop: *Image = undefined;
 
 fn generate_row(row: usize) void {
     // Randomly generate a row of block for the map. This is a naive approach,
@@ -38,14 +37,15 @@ fn generate_row(row: usize) void {
     }
 }
 
-fn place_coin(row: usize) void {
+fn place_coin(row: i32) void {
     // Randomly find a free spot for the coin, max 12 tries
-    for (0..12) |_| {
+    for (0..12 * 2) |_| {
         const x = utils.rand_int(0, 7);
-        if (map.data[row * @as(usize, @intCast(map.size.x)) + @as(usize, @intCast(x))] == 1 and
-            map.data[(row - 1) * @as(usize, @intCast(map.size.x)) + @as(usize, @intCast(x))] == 0)
-        {
-            const pos = vec2(@floatFromInt(x * map.tile_size + 1), @floatFromInt((row - 1) * map.tile_size + 2));
+        if (map.tileAt(vec2i(x, row - 1)) == 1 and map.tileAt(vec2i(x, row - 2)) == 0) {
+            const pos = vec2(
+                @floatFromInt(x * map.tile_size + 1),
+                @floatFromInt((row - 2) * map.tile_size + 2),
+            );
             _ = engine.spawn(.coin, pos);
             return;
         }
@@ -98,11 +98,9 @@ fn update() void {
         ziengine.viewport.y -= 8;
         player.base.pos.y -= 8;
         const coins = engine.entitiesByType(.coin);
-        for (0..coins.items.len) |i| {
-            const entity = engine.entityByRef(coins.items[i]);
-            if (entity) |e| {
-                e.base.pos.y -= 8;
-            }
+        for (coins.items) |coin| {
+            const entity = engine.entityByRef(coin);
+            entity.?.base.pos.y -= 8;
         }
 
         // Move all tiles up one row

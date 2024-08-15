@@ -32,7 +32,7 @@ pub const Font = struct {
     // Internal state
     first_char: i32,
     last_char: i32,
-    image: Image,
+    image: *Image,
     glyphs: []FontGlyph,
 
     /// Draw some text. \n starts a new line. pos is the "anchor" position of the

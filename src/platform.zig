@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const sokol = @import("sokol");
 const stm = sokol.time;
 const sapp = sokol.app;
+const saudio = sokol.audio;
 const types = @import("types.zig");
 const Vec2i = types.Vec2i;
 const vec2i = types.vec2i;
@@ -13,6 +14,9 @@ const Parsed = std.json.Parsed;
 const TempAllocator = @import("allocator.zig").TempAllocator;
 const input = @import("input.zig");
 const Button = input.Button;
+
+var platform_output_samplerate: u32 = 44100;
+var audio_callback: ?*const fn (buffer: []f32) void = null;
 
 const keyboard_map: [349]Button = keyboard_map_init();
 
@@ -141,6 +145,18 @@ fn keyboard_map_init() [349]Button {
     return btns;
 }
 
+pub fn init() void {
+    saudio.setup(.{
+        .sample_rate = @intCast(platform_output_samplerate),
+        .buffer_frames = 1024,
+        .num_channels = 2,
+        .stream_cb = platform_audio_callback,
+    });
+
+    // Might be different from requested rate
+    platform_output_samplerate = @intCast(saudio.sampleRate());
+}
+
 pub fn now() f64 {
     return stm.sec(stm.now());
 }
@@ -149,15 +165,25 @@ pub fn screenSize() Vec2i {
     return vec2i(sapp.width(), sapp.height());
 }
 
-pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Value) {
+pub fn samplerate() u32 {
+    return platform_output_samplerate;
+}
+
+pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
     var file = std.fs.cwd().openFile(name, .{}) catch @panic("failed to load asset");
     defer file.close();
 
     const reader = file.reader();
     const file_size = (file.stat() catch @panic("failed to load asset")).size;
-    var temp_alloc = TempAllocator{};
-    const buf = temp_alloc.allocator().alloc(u8, file_size) catch @panic("failed to load asset");
+    const buf = allocator.alloc(u8, file_size) catch @panic("failed to load asset");
     _ = reader.readAll(buf) catch @panic("failed to load asset");
+
+    return buf;
+}
+
+pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Value) {
+    var temp_alloc = TempAllocator{};
+    const buf = loadAsset(name, temp_alloc.allocator());
     defer temp_alloc.allocator().free(buf);
 
     const parsed = std.json.parseFromSlice(Value, allocator, buf, .{}) catch @panic("error when parsing map");
@@ -230,4 +256,16 @@ pub export fn platform_handle_event(ev: [*c]const sapp.Event) void {
     // if (ev.type == SAPP_EVENTTYPE_RESIZED) {
     // 	engine_resize(vec2i(ev.window_width, ev.window_height));
     // }
+}
+
+fn platform_audio_callback(buffer: [*c]f32, num_frames: i32, num_channels: i32) callconv(.C) void {
+    if (audio_callback) |cb| {
+        cb(buffer[0..@intCast(num_frames * num_channels)]);
+    } else {
+        @memset(buffer[0..@intCast(num_frames * num_channels)], 0);
+    }
+}
+
+pub fn setAudioMixCb(cb: *const fn (buffer: []f32) void) void {
+    audio_callback = cb;
 }

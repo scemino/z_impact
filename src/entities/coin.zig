@@ -16,14 +16,15 @@ const Engine = @import("../engine.zig").Engine;
 const engine = Engine(game.Entity, game.EntityKind);
 const ziengine = @import("../engine.zig");
 const g = @import("../global.zig");
+const snd = @import("../sound.zig");
 
 var anim_idle: AnimDef = undefined;
-// static sound_source_t *sound_collect;
+var sound_collect: *snd.SoundSource = undefined;
 
 fn load() void {
     const sheet = Image.init("assets/coin.qoi") catch @panic("failed to init image");
     anim_idle = animDef(sheet, vec2i(4, 4), 0.1, &[_]u16{ 0, 1 }, true);
-    // sound_collect = sound_source("assets/coin.qoa");
+    sound_collect = snd.source("assets/coin.qoa");
 }
 
 fn init(self: *Entity) void {
@@ -43,7 +44,7 @@ fn update(self: *Entity) void {
 fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
-    // sound_play(sound_collect);
+    snd.play(sound_collect);
     engine.killEntity(self);
 }
 

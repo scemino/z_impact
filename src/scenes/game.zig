@@ -20,11 +20,12 @@ const input = @import("../input.zig");
 const p = @import("../entities/player.zig");
 const Engine = @import("../engine.zig").Engine;
 const engine = Engine(game.Entity, game.EntityKind);
+const snd = @import("../sound.zig");
 
 var map: Map = undefined;
 var game_over: bool = false;
 var player: *Entity = undefined;
-// sound_source_t *sound_game_over;
+var sound_game_over: *snd.SoundSource = undefined;
 var backdrop: *Image = undefined;
 
 fn generate_row(row: usize) void {
@@ -60,7 +61,7 @@ fn init() void {
     g.speed = 1;
     game_over = false;
     backdrop = Image.init("assets/backdrop.qoi") catch @panic("failed to init image");
-    // sound_game_over = sound_source("assets/game_over.qoa");
+    sound_game_over = snd.source("assets/game_over.qoa");
 
     map = Map.initWithData(8, vec2i(8, 18), null);
     map.tileset = Image.init("assets/tiles.qoi") catch @panic("failed to init image");
@@ -119,7 +120,7 @@ fn update() void {
     const pp = player.base.pos.y - ziengine.viewport.y;
     if (pp > @as(f32, @floatFromInt(render.renderSize().y)) + 8.0 or pp < -32) {
         game_over = true;
-        // sound_play(sound_game_over);
+        snd.play(sound_game_over);
     }
 }
 

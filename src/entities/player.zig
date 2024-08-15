@@ -15,6 +15,8 @@ const input = @import("../input.zig");
 const ett = @import("../entity.zig");
 const Engine = @import("../engine.zig").Engine;
 const engine = Engine(game.Entity, game.EntityKind);
+const Trace = @import("../trace.zig").Trace;
+const snd = @import("../sound.zig");
 
 pub const A_LEFT: u8 = 1;
 pub const A_RIGHT: u8 = 2;
@@ -22,11 +24,12 @@ pub const A_START: u8 = 4;
 
 var anim_idle: AnimDef = undefined;
 var hints: *Image = undefined;
+var sound_bounce: *snd.SoundSource = undefined;
 
 fn load() void {
     const sheet = Image.init("assets/player.qoi") catch @panic("failed to init image");
     anim_idle = animDef(sheet, vec2i(4, 4), 1.0, &[_]u16{0}, true);
-    // sound_bounce = sound_source("assets/bounce.qoa");
+    sound_bounce = snd.source("assets/bounce.qoa");
     hints = Image.init("assets/hints.qoi") catch @panic("failed to init image");
 }
 
@@ -64,9 +67,16 @@ fn draw(self: *Entity, vp: Vec2) void {
     }
 }
 
+fn collide(self: *Entity, normal: Vec2, _: ?Trace) void {
+    if (normal.y == -1 and self.base.vel.y > 32) {
+        snd.play(sound_bounce);
+    }
+}
+
 pub var vtab: EntityVtab(Entity) = .{
     .load = load,
     .init = init,
     .update = update,
     .draw = draw,
+    .collide = collide,
 };

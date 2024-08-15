@@ -68,10 +68,11 @@ pub const BumpAllocator = struct {
         _ = ctx;
         _ = log2_ptr_align;
         _ = ret_addr;
+        const size = ((len + 7) >> 3) << 3; // align to 8 bytes
         assert(bump_len + temp_len + len < ALLOC_SIZE);
-        bump_len += len;
-        @memset(hunk[bump_len..], 0);
-        return hunk[bump_len..].ptr;
+        @memset(hunk[bump_len .. bump_len + size], 0);
+        bump_len += size;
+        return hunk[bump_len - size .. bump_len].ptr;
     }
 
     fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, ret_addr: usize) void {

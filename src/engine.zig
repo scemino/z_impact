@@ -22,6 +22,7 @@ const Scene = ziscene.Scene;
 const input = @import("input.zig");
 const Map = @import("map.zig").Map;
 const Trace = @import("trace.zig").Trace;
+const snd = @import("sound.zig");
 const ObjectMap = std.json.ObjectMap;
 
 // The maximum difference in seconds from one frame to the next. If the
@@ -80,7 +81,7 @@ var scene_next: ?*Scene = null;
 var init_textures_mark: texture.TextureMark = .{};
 var init_images_mark: img.ImageMark = .{};
 var init_bump_mark: alloc.BumpMark = .{};
-// var init_sounds_mark: sound_mark_t = {};
+var init_sounds_mark: snd.SoundMark = .{};
 pub var is_running = false;
 
 pub fn Engine(comptime T: type, comptime TKind: type) type {
@@ -101,15 +102,16 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         pub fn init(vtabs: []EntityVtab(T)) void {
             time_real = platform.now();
             renderInit(platform.screenSize());
-            // sound_init(platform.samplerate());
-            // platform_set_audio_mix_cb(sound_mix_stereo);
+            snd.init(platform.samplerate());
+            platform.init();
+            platform.setAudioMixCb(snd.mix_stereo);
             // input_init();
             initEntities(vtabs);
             // main_init();
 
             init_bump_mark = alloc.bumpMark();
             init_images_mark = img.imagesMark();
-            // init_sounds_mark = sound_mark();
+            init_sounds_mark = snd.mark();
             init_textures_mark = texture.texturesMark();
         }
 
@@ -126,7 +128,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
                 texture.texturesReset(init_textures_mark);
                 img.imagesReset(init_images_mark);
-                // sound.reset(init_sounds_mark);
+                snd.reset(init_sounds_mark);
                 // bump.reset(init_bump_mark);
                 entitiesReset();
 

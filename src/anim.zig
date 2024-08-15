@@ -4,6 +4,7 @@ const img = @import("image.zig");
 const types = @import("types.zig");
 const engine = @import("engine.zig");
 const render = @import("render.zig");
+const rand_int = @import("utils.zig").rand_int;
 const vec2 = types.vec2;
 const Rgba = types.Rgba;
 const Vec2 = types.Vec2;
@@ -37,9 +38,9 @@ pub const Anim = struct {
             return;
 
         const diff: f64 = @max(0, engine.time - self.start_time);
-        const looped: f64 = diff * def.?.inv_total_time;
+        const anim_looped: f64 = diff * def.?.inv_total_time;
 
-        const frame = if (!def.?.loop and looped >= 1) def.?.sequence.len - 1 else @as(usize, @intFromFloat((looped - @floor(looped)) * @as(f64, @floatFromInt(def.?.sequence.len))));
+        const frame = if (!def.?.loop and anim_looped >= 1) def.?.sequence.len - 1 else @as(usize, @intFromFloat((anim_looped - @floor(anim_looped)) * @as(f64, @floatFromInt(def.?.sequence.len))));
         const tile = def.?.sequence[frame] + self.tile_offset;
         // std.log.info("frame: {}, diff: {}, seq: {}", .{ frame, diff, def.?.sequence[frame] });
 
@@ -52,6 +53,27 @@ pub const Anim = struct {
             def.?.sheet.drawTileEx(tile, def.?.frame_size, Vec2.mulf(def.?.pivot, -1.0), self.flip_x, self.flip_y, self.color);
             render.pop();
         }
+    }
+
+    /// Rewind the animation to the first frame of the sequence
+    pub fn rewind(self: *Anim) void {
+        self.start_time = engine.time;
+    }
+
+    /// Goto to the nth index of the sequence
+    pub fn goto(self: *Anim, frame: usize) void {
+        self.start_time = engine.time + frame * anim.def.frame_time;
+    }
+
+    /// Goto a random frame of the sequence
+    pub fn gotoRand(self: *Anim) void {
+        self.goto(rand_int(0, anim.def.sequence_len - 1));
+    }
+
+    /// Return the number of times this animation has played through
+    pub fn looped(self: *Anim) u32 {
+        const diff = engine.time - self.start_time;
+        return (diff * self.def.inv_total_time);
     }
 };
 

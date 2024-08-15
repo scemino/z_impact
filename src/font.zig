@@ -47,12 +47,12 @@ pub const Font = struct {
                 pos.y += @floatFromInt(self.line_height);
                 c += 1;
             }
-            c += font_draw_line(self, pos, text[c..], alignment);
+            c += fontDrawLine(self, pos, text[c..], alignment);
         }
     }
 
     /// Return the line width for the given text
-    fn font_line_width(self: Font, text: []const u8) usize {
+    fn fontLineWidth(self: Font, text: []const u8) usize {
         var width: usize = 0;
         var c: usize = 0;
         while (c < text.len and text[c] != 0 and text[c] != '\n') {
@@ -64,10 +64,10 @@ pub const Font = struct {
         return @max(0, width - @as(usize, @intCast(self.letter_spacing)));
     }
 
-    fn font_draw_line(self: Font, p: Vec2, text: []const u8, alignment: FontAlign) usize {
+    fn fontDrawLine(self: Font, p: Vec2, text: []const u8, alignment: FontAlign) usize {
         var pos = p;
         if (alignment == .FONT_ALIGN_CENTER or alignment == .FONT_ALIGN_RIGHT) {
-            const width = self.font_line_width(text);
+            const width = self.fontLineWidth(text);
             pos.x -= if (alignment == .FONT_ALIGN_CENTER) @as(f32, @floatFromInt(width)) / 2.0 else @as(f32, @floatFromInt(width));
         }
 

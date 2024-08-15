@@ -15,13 +15,6 @@ pub const EntityRef = struct {
     index: u16,
 };
 
-// A list of entity refs. Usually bump allocated and thus only valid for the
-// current frame.
-pub const EntityList = struct {
-    len: usize,
-    entities: []EntityRef,
-};
-
 // entity_ref_none will always resolve to NULL
 pub fn entityRefNone() EntityRef {
     return .{ .id = 0, .index = 0 };

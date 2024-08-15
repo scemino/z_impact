@@ -17,8 +17,14 @@ var image_paths: [IMAGE_MAX_SOURCES][]u8 = undefined;
 var images: [IMAGE_MAX_SOURCES]Image = undefined;
 var images_len: usize = 0;
 
+/// Called by the engine to manage image memory
 pub const ImageMark = struct { index: usize = 0 };
 
+/// Images can be loaded from QOI files or directly created with an array of
+/// rgba_t pixels. If an image at a certain path is already loaded, calling
+/// image() with that same path, will return the same image.
+/// Images can be drawn to the screen in full, just parts of it, or as a "tile"
+/// from it.
 pub const Image = struct {
     size: Vec2i,
     texture: Texture,
@@ -61,19 +67,23 @@ pub const Image = struct {
         return &images[images_len - 1];
     }
 
+    /// Draw the whole image at pos
     pub fn draw(self: Image, pos: Vec2) void {
         const size = types.fromVec2i(self.size);
         render.draw(pos, size, self.texture, .{ .x = 0, .y = 0 }, size, types.white());
     }
 
+    /// Draw the src_pos, src_size rect of the image to dst_pos with dst_size and a tint color
     pub fn drawEx(self: Image, src_pos: Vec2, src_size: Vec2, dst_pos: Vec2, dst_size: Vec2, color: Rgba) void {
         render.draw(dst_pos, dst_size, self.texture, src_pos, src_size, color);
     }
 
+    /// Draw a single tile from the image, as subdivided by tile_size
     pub fn drawTile(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2) void {
         self.drawTileEx(tile, tile_size, dst_pos, false, false, types.white());
     }
 
+    /// Draw a single tile and specify x/y flipping and a tint color
     pub fn drawTileEx(self: Image, tile: i32, tile_size: Vec2i, dst_pos: Vec2, flip_x: bool, flip_y: bool, color: Rgba) void {
         assert(self.size.x > 0);
         var src_pos = types.vec2(
@@ -96,10 +106,12 @@ pub const Image = struct {
     }
 };
 
+/// Called by the engine to manage image memory
 pub fn imagesMark() ImageMark {
     return .{ .index = images_len };
 }
 
+/// Called by the engine to manage image memory
 pub fn imagesReset(mark: ImageMark) void {
     images_len = mark.index;
 }

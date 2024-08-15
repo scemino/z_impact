@@ -250,7 +250,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
             const vstep = Vec2.mulf(Vec2.add(v, self.base.vel), @as(f32, @floatCast(tick * 0.5)));
             self.base.on_ground = false;
-            entity_move(self, vstep);
+            entityMove(self, vstep);
         }
 
         pub fn sceneBaseUpdate() void {
@@ -267,14 +267,14 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         // zig fmt: off
-        fn noop_load() void {}
-        fn noop_init(self: *T) void { _ = self; }
-        fn noop_kill(self: *T) void { _ = self; }
-        fn noop_settings(self: *T, def: ObjectMap) void { _ = self; _ = def; }
-        fn noop_touch(self: *T, other: *T) void {_ = self; _ = other; }
-        fn noop_collide(self: *T, normal: Vec2, t: ?Trace) void { _ = self; _ = normal; _ = t; }
-        fn noop_trigger(self: *T, other: *T) void { _ = self; _ = other; }
-        // fn noop_message(self: *T, entity_message_t message, void *data) void {}
+        fn noopLoad() void {}
+        fn noopInit(self: *T) void { _ = self; }
+        fn noopKill(self: *T) void { _ = self; }
+        fn noopSettings(self: *T, def: ObjectMap) void { _ = self; _ = def; }
+        fn noopTouch(self: *T, other: *T) void {_ = self; _ = other; }
+        fn noopCollide(self: *T, normal: Vec2, t: ?Trace) void { _ = self; _ = normal; _ = t; }
+        fn noopTrigger(self: *T, other: *T) void { _ = self; _ = other; }
+        // fn noopMessage(self: *T, entity_message_t message, void *data) void {}
         // zig fmt: on
 
         fn initEntities(vtabs: []EntityVtab(T)) void {
@@ -282,17 +282,17 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             for (0..vtabs.len) |i| {
                 const e_vtab = &vtabs[i];
                 // zig fmt: off
-                if ( e_vtab.load == null )     { vtabs[i].load = noop_load; }
-                if ( e_vtab.init == null )     { vtabs[i].init = noop_init; }
-                if ( e_vtab.settings == null ) { vtabs[i].settings = noop_settings; }
+                if ( e_vtab.load == null )     { vtabs[i].load = noopLoad; }
+                if ( e_vtab.init == null )     { vtabs[i].init = noopInit; }
+                if ( e_vtab.settings == null ) { vtabs[i].settings = noopSettings; }
                 if ( e_vtab.update == null )   { vtabs[i].update = baseUpdate; }
                 if ( e_vtab.draw == null )     { vtabs[i].draw = entityBaseDraw; }
-                if ( e_vtab.kill == null )     { vtabs[i].kill = noop_kill; }
-                if ( e_vtab.touch == null )    { vtabs[i].touch = noop_touch; }
-                if ( e_vtab.collide == null )  { vtabs[i].collide = noop_collide; }
+                if ( e_vtab.kill == null )     { vtabs[i].kill = noopKill; }
+                if ( e_vtab.touch == null )    { vtabs[i].touch = noopTouch; }
+                if ( e_vtab.collide == null )  { vtabs[i].collide = noopCollide; }
                 // if ( e_vtab.damage == null )   { vtabs[i].damage = baseDamage; }
-                if ( e_vtab.trigger == null )  { vtabs[i].trigger = noop_trigger; }
-                // if ( e_vtab.message == null )  { vtabs[i].message = noop_message; }
+                if ( e_vtab.trigger == null )  { vtabs[i].trigger = noopTrigger; }
+                // if ( e_vtab.message == null )  { vtabs[i].message = noopMessage; }
                 // zig fmt: on
 
                 if (e_vtab.load) |load| {
@@ -435,28 +435,28 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
             if (overlap_y > overlap_x) {
                 if (a.base.pos.x < b.base.pos.x) {
-                    entities_separate_on_x_axis(a, b, a_move, b_move, overlap_x);
+                    entitiesSeparateOnXAxis(a, b, a_move, b_move, overlap_x);
                     collideEntity(a, vec2(-1, 0), null);
                     collideEntity(b, vec2(1, 0), null);
                 } else {
-                    entities_separate_on_x_axis(b, a, b_move, a_move, overlap_x);
+                    entitiesSeparateOnXAxis(b, a, b_move, a_move, overlap_x);
                     collideEntity(a, vec2(1, 0), null);
                     collideEntity(b, vec2(-1, 0), null);
                 }
             } else {
                 if (a.base.pos.y < b.base.pos.y) {
-                    entities_separate_on_y_axis(a, b, a_move, b_move, overlap_y);
+                    entitiesSeparateOnYAxis(a, b, a_move, b_move, overlap_y);
                     collideEntity(a, vec2(0, -1), null);
                     collideEntity(b, vec2(0, 1), null);
                 } else {
-                    entities_separate_on_y_axis(b, a, b_move, a_move, overlap_y);
+                    entitiesSeparateOnYAxis(b, a, b_move, a_move, overlap_y);
                     collideEntity(a, vec2(0, 1), null);
                     collideEntity(b, vec2(0, -1), null);
                 }
             }
         }
 
-        fn entities_separate_on_x_axis(left: *T, right: *T, left_move: f32, right_move: f32, overlap: f32) void {
+        fn entitiesSeparateOnXAxis(left: *T, right: *T, left_move: f32, right_move: f32, overlap: f32) void {
             const impact_velocity = left.base.vel.x - right.base.vel.x;
 
             if (left_move > 0) {
@@ -466,7 +466,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
                     left.base.vel.x -= bounce;
                 }
-                entity_move(left, vec2(-overlap * left_move, 0));
+                entityMove(left, vec2(-overlap * left_move, 0));
             }
             if (right_move > 0) {
                 right.base.vel.x = left.base.vel.x * right_move + right.base.vel.x * left_move;
@@ -475,11 +475,11 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
                     right.base.vel.x += bounce;
                 }
-                entity_move(right, vec2(overlap * right_move, 0));
+                entityMove(right, vec2(overlap * right_move, 0));
             }
         }
 
-        fn entities_separate_on_y_axis(top: *T, bottom: *T, tm: f32, bm: f32, overlap: f32) void {
+        fn entitiesSeparateOnYAxis(top: *T, bottom: *T, tm: f32, bm: f32, overlap: f32) void {
             var top_move = tm;
             var bottom_move = bm;
             if (bottom.base.on_ground and top_move > 0) {
@@ -501,7 +501,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     top.base.on_ground = true;
                     move_x = @floatCast(bottom.base.vel.x * tick);
                 }
-                entity_move(top, vec2(move_x, -overlap * top_move));
+                entityMove(top, vec2(move_x, -overlap * top_move));
             }
             if (bottom_move > 0) {
                 bottom.base.vel.y = bottom.base.vel.y * top_move + top_vel_y * bottom_move;
@@ -510,14 +510,14 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 if (bounce > ENTITY_MIN_BOUNCE_VELOCITY) {
                     bottom.base.vel.y += bounce;
                 }
-                entity_move(bottom, vec2(0, overlap * bottom_move));
+                entityMove(bottom, vec2(0, overlap * bottom_move));
             }
         }
 
-        fn entity_move(self: *T, vstep: Vec2) void {
+        fn entityMove(self: *T, vstep: Vec2) void {
             if (((self.base.physics & ett.ENTITY_PHYSICS_WORLD) != 0) and collision_map != null) {
                 const t = trace(collision_map.?, self.base.pos, vstep, self.base.size);
-                entity_handle_trace_result(self, t);
+                entityHandleTraceResult(self, t);
 
                 // The previous trace was stopped short and we still have some velocity
                 // left? Do a second trace with the new velocity. this allows us
@@ -530,7 +530,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                         const remaining = 1 - t.length;
                         const vstep2 = rotated_normal.mulf(vel_along_normal * remaining);
                         const t2 = trace(collision_map.?, self.base.pos, vstep2, self.base.size);
-                        entity_handle_trace_result(self, t2);
+                        entityHandleTraceResult(self, t2);
                     }
                 }
             } else {
@@ -538,7 +538,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
         }
 
-        fn entity_handle_trace_result(self: *T, t: Trace) void {
+        fn entityHandleTraceResult(self: *T, t: Trace) void {
             self.base.pos = t.pos;
 
             if (t.tile == 0) {

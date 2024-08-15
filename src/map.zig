@@ -118,6 +118,9 @@ pub const Map = struct {
         return map;
     }
 
+    /// Create a map with the given data. If data is not null, it must be least
+    /// size.x * size.y elements long. The data is _not_ copied. If data is null,
+    /// an array of sufficent length will be allocated.
     pub fn initWithData(tile_size: u16, size: Vec2i, data: ?[]u16) Map {
         assert(!engine.is_running); // "Cannot create map during gameplay");
 

@@ -70,7 +70,7 @@ pub fn trace(map: *Map, from: Vec2, vel: Vec2, size: Vec2) Trace {
             const num_tilesf = @ceil(@abs(max_y / @as(f32, @floatFromInt(map.tile_size)) - @as(f32, @floatFromInt(tile_pos.y)) - offset.y));
             const num_tiles: usize = @intFromFloat(num_tilesf);
             for (0..num_tiles) |t| {
-                check_tile(map, from, vel, size, vec2i(tile_pos.x, tile_pos.y + @as(i32, @intFromFloat(dir.y)) * @as(i32, @intCast(t))), &res);
+                checkTile(map, from, vel, size, vec2i(tile_pos.x, tile_pos.y + @as(i32, @intFromFloat(dir.y)) * @as(i32, @intCast(t))), &res);
             }
 
             last_tile_pos.x = tile_pos.x;
@@ -89,7 +89,7 @@ pub fn trace(map: *Map, from: Vec2, vel: Vec2, size: Vec2) Trace {
             const num_tilesf = @ceil(@abs(max_x / @as(f32, @floatFromInt(map.tile_size)) - @as(f32, @floatFromInt(tile_pos.x)) - offset.x));
             const num_tiles: usize = @intFromFloat(num_tilesf);
             for (corner_tile_checked..num_tiles) |t| {
-                check_tile(map, from, vel, size, vec2i(tile_pos.x + @as(i32, @intFromFloat(dir.x)) * @as(i32, @intCast(t)), tile_pos.y), &res);
+                checkTile(map, from, vel, size, vec2i(tile_pos.x + @as(i32, @intFromFloat(dir.x)) * @as(i32, @intCast(t)), tile_pos.y), &res);
             }
 
             last_tile_pos.y = tile_pos.y;
@@ -108,19 +108,19 @@ pub fn trace(map: *Map, from: Vec2, vel: Vec2, size: Vec2) Trace {
     return res;
 }
 
-pub fn check_tile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, res: *Trace) void {
+pub fn checkTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, res: *Trace) void {
     const tile = map.tileAt(tile_pos);
     if (tile == 0) {
         return;
     } else if (tile == 1) {
-        resolve_full_tile(map, pos, vel, size, tile_pos, res);
+        resolveFullTile(map, pos, vel, size, tile_pos, res);
     } else {
         unreachable;
         //TODO: resolve_sloped_tile(map, pos, vel, size, tile_pos, tile, res);
     }
 }
 
-fn resolve_full_tile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, res: *Trace) void {
+fn resolveFullTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, res: *Trace) void {
     // The minimum resulting x or y position in case of a collision. Only
     // the x or y coordinate is correct - depending on if we enter the tile
     // horizontaly or vertically. We will recalculate the wrong one again.

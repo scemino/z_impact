@@ -35,6 +35,23 @@ pub const Vec2 = struct {
     pub fn dot(a: Vec2, b: Vec2) f32 {
         return a.x * b.x + a.y * b.y;
     }
+
+    pub fn abs(a: Vec2) Vec2 {
+        return vec2(@abs(a.x), @abs(a.y));
+    }
+
+    pub fn len(a: Vec2) f32 {
+        return @sqrt(a.x * a.x + a.y * a.y);
+    }
+
+    pub fn dist(a: Vec2, b: Vec2) f32 {
+        return a.sub(b).len();
+    }
+
+    pub fn angle(a: Vec2, b: Vec2) f32 {
+        const d = b.sub(a);
+        return std.math.atan2(d.y, d.x);
+    }
 };
 
 pub const Vec2i = struct {
@@ -49,6 +66,10 @@ pub const Vec2i = struct {
         return vec2i(a.x * f, a.y * f);
     }
 };
+
+pub fn fromAngle(a: f32) Vec2 {
+    return vec2(std.math.cos(a), std.math.sin(a));
+}
 
 pub fn vec2(x: f32, y: f32) Vec2 {
     return .{ .x = x, .y = y };

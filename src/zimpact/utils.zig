@@ -14,22 +14,37 @@ var r: std.rand.DefaultPrng = undefined;
 var rand: std.Random = undefined;
 
 /// Seed the random number generator to a particular state
-pub fn rand_seed(seed: u64) void {
+pub fn randSeed(seed: u64) void {
     r = std.rand.DefaultPrng.init(seed);
     rand = r.random();
 }
 
 /// A random uint64_t
-pub fn rand_uint64() u64 {
+pub fn randU64() u64 {
     return rand.int(u64);
 }
 
 /// A random float between min and max
-pub fn rand_float(min: f32, max: f32) f32 {
+pub fn randFloat(min: f32, max: f32) f32 {
     return min + rand.float(f32) * (max - min);
 }
 
 // A random int between min and max (inclusive)
-pub fn rand_int(min: i32, max: i32) i32 {
+pub fn randInt(min: i32, max: i32) i32 {
     return rand.intRangeAtMost(i32, min, max);
+}
+
+pub inline fn shuffle(comptime T: type, buf: []T) void {
+    return rand.shuffle(T, buf);
+}
+
+pub fn jsonFloat(value: ?std.json.Value) f32 {
+    if (value) |v| {
+        return switch (v) {
+            .integer => |i| @as(f32, @floatFromInt(i)),
+            .float => |f| @as(f32, @floatCast(f)),
+            else => 0.0,
+        };
+    }
+    return 0.0;
 }

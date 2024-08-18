@@ -54,11 +54,11 @@ pub const Image = struct {
         _ = try reader.readAll(buf);
         defer temp_alloc.allocator().free(buf);
 
-        var image = try qoi.decodeBuffer(temp_alloc.allocator(), buf);
-        defer image.deinit(temp_alloc.allocator());
+        var img = try qoi.decodeBuffer(temp_alloc.allocator(), buf);
+        defer img.deinit(temp_alloc.allocator());
 
-        const size = Vec2i{ .x = @intCast(image.width), .y = @intCast(image.height) };
-        const image_pixels = std.mem.sliceAsBytes(image.pixels);
+        const size = Vec2i{ .x = @intCast(img.width), .y = @intCast(img.height) };
+        const image_pixels = std.mem.sliceAsBytes(img.pixels);
         const texture_pixels = std.mem.bytesAsSlice(Rgba, image_pixels);
         const texture = Texture.init(size, texture_pixels);
 
@@ -114,4 +114,8 @@ pub fn imagesMark() ImageMark {
 /// Called by the engine to manage image memory
 pub fn imagesReset(mark: ImageMark) void {
     images_len = mark.index;
+}
+
+pub fn image(path: []const u8) *Image {
+    return Image.init(path) catch @panic("failed to init image");
 }

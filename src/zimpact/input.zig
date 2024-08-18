@@ -5,6 +5,7 @@ const vec2 = types.vec2;
 const assert = std.debug.assert;
 
 const INPUT_ACTION_MAX = 32;
+const INPUT_DEADZONE_CAPTURE = 0.5;
 
 pub const Button = enum(u8) {
     INPUT_INVALID = 0,
@@ -219,10 +220,11 @@ pub fn setButtonState(button: Button, s: f32) void {
         actions_state[action] = state;
     }
 
-    // TODO:
-    // if (capture_callback and state > .INPUT_DEADZONE_CAPTURE) {
-    //     capture_callback(capture_user, button, 0);
-    // }
+    if (capture_callback) |cb| {
+        if (state > INPUT_DEADZONE_CAPTURE) {
+            cb(capture_user, button, 0);
+        }
+    }
 }
 
 /// Bind a key/button to an action. Multiple buttons can be bound to the same
@@ -245,5 +247,24 @@ pub fn unbind(button: Button) void {
 pub fn unbindAll() void {
     for (0..INPUT_BUTTON_MAX) |i| {
         unbind(@enumFromInt(i));
+    }
+}
+
+// Set up a capture callback that will receive ALL key and button presses. For
+// non-text input, ascii_char will be 0. Call input_capture(NULL, NULL) to
+// uninstall a callback.
+const CaptureCallback = *fn (user: ?*anyopaque, button: Button, ascii_char: u32) void;
+var capture_callback: ?CaptureCallback = null;
+var capture_user: ?*anyopaque = null;
+
+pub fn capture(cb: CaptureCallback, user: ?*anyopaque) void {
+    capture_callback = cb;
+    capture_user = user;
+    clear();
+}
+
+pub fn textInput(ascii_char: u32) void {
+    if (capture_callback) |cb| {
+        cb(capture_user, .INPUT_INVALID, ascii_char);
     }
 }

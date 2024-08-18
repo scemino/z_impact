@@ -11,6 +11,7 @@ const img = @import("image.zig");
 const texture = @import("texture.zig");
 const platform = @import("platform.zig");
 const ett = @import("entity.zig");
+const anim = @import("anim.zig");
 const EntityVtab = ett.EntityVtab;
 const EntityRef = ett.EntityRef;
 const EntityList = ett.EntityList;
@@ -55,7 +56,7 @@ var frame: u64 = 0;
 
 /// The map to use for entity vs. world collisions. Reset for each scene.
 /// Use engine_set_collision_map() to set it.
-var collision_map: ?*Map = null;
+pub var collision_map: ?*Map = null;
 
 // The maps to draw. Reset for each scene. Use engine_add_background_map()
 // to add.
@@ -98,16 +99,24 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         var entities_storage: [ENTITIES_MAX]T = undefined;
         var entities_len: usize = 0;
         var entity_unique_id: u16 = 0;
+        var render_size: Vec2i = undefined;
 
-        pub fn init(vtabs: []EntityVtab(T)) void {
+        const Desc = struct {
+            vtabs: []EntityVtab(T),
+            render_size: Vec2i,
+            main_init: ?*const fn () void = null,
+        };
+
+        pub fn init(desc: Desc) void {
+            render_size = desc.render_size;
             time_real = platform.now();
             renderInit(platform.screenSize());
             snd.init(platform.samplerate());
             platform.init();
-            platform.setAudioMixCb(snd.mix_stereo);
+            platform.setAudioMixCb(snd.mixStereo);
             // input_init();
-            initEntities(vtabs);
-            // main_init();
+            initEntities(desc.vtabs);
+            if (desc.main_init) |main_init| main_init();
 
             init_bump_mark = alloc.bumpMark();
             init_images_mark = img.imagesMark();
@@ -129,7 +138,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 texture.texturesReset(init_textures_mark);
                 img.imagesReset(init_images_mark);
                 snd.reset(init_sounds_mark);
-                // bump.reset(init_bump_mark);
+                alloc.bumpReset(init_bump_mark);
                 entitiesReset();
 
                 background_maps_len = 0;
@@ -236,6 +245,14 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
         }
 
+        pub fn entityBaseDamage(self: *T, _: *T, damage: f32) void {
+            self.base.health -= damage;
+
+            if (self.base.health <= 0 and self.base.is_alive) {
+                entityKill(self);
+            }
+        }
+
         pub fn baseUpdate(self: *T) void {
             if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) == 0) {
                 return;
@@ -262,19 +279,19 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn renderInit(avaiable_size: Vec2i) void {
-            render.init();
+            render.init(render_size);
             render.resize(avaiable_size);
         }
 
         // zig fmt: off
         fn noopLoad() void {}
-        fn noopInit(self: *T) void { _ = self; }
-        fn noopKill(self: *T) void { _ = self; }
-        fn noopSettings(self: *T, def: ObjectMap) void { _ = self; _ = def; }
-        fn noopTouch(self: *T, other: *T) void {_ = self; _ = other; }
-        fn noopCollide(self: *T, normal: Vec2, t: ?Trace) void { _ = self; _ = normal; _ = t; }
-        fn noopTrigger(self: *T, other: *T) void { _ = self; _ = other; }
-        // fn noopMessage(self: *T, entity_message_t message, void *data) void {}
+        fn noopInit(_: *T) void {  }
+        fn noopKill(_: *T) void {  }
+        fn noopSettings(_: *T, _: ObjectMap) void {}
+        fn noopTouch(_: *T, _: *T) void { }
+        fn noopCollide(_: *T, _: Vec2, _: ?Trace) void {}
+        fn noopTrigger(_: *T, _: *T) void {}
+        fn noopMessage(_: *T, _: ?*anyopaque, _: ?*anyopaque) void {}
         // zig fmt: on
 
         fn initEntities(vtabs: []EntityVtab(T)) void {
@@ -290,9 +307,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 if ( e_vtab.kill == null )     { vtabs[i].kill = noopKill; }
                 if ( e_vtab.touch == null )    { vtabs[i].touch = noopTouch; }
                 if ( e_vtab.collide == null )  { vtabs[i].collide = noopCollide; }
-                // if ( e_vtab.damage == null )   { vtabs[i].damage = baseDamage; }
+                if ( e_vtab.damage == null )   { vtabs[i].damage = entityBaseDamage; }
                 if ( e_vtab.trigger == null )  { vtabs[i].trigger = noopTrigger; }
-                // if ( e_vtab.message == null )  { vtabs[i].message = noopMessage; }
+                if ( e_vtab.message == null )  { vtabs[i].message = noopMessage; }
                 // zig fmt: on
 
                 if (e_vtab.load) |load| {
@@ -325,20 +342,22 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             }
 
             // Sort by x or y position - insertion sort
-            std.sort.heap(*T, entities[0..entities_len], {}, cmpEntityPos);
+            std.sort.insertion(*T, entities[0..entities_len], {}, cmpEntityPos);
+
+            const len: usize = entities_len;
 
             // Sweep touches
             // engine.perf.checks = 0;
             i = 0;
             for (entities) |e1| {
-                if (i == entities_len) break;
+                if (i == len) break;
 
                 if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
                     e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
                 {
                     const max_pos = e1.base.pos.x + e1.base.size.x;
                     var j: usize = i + 1;
-                    while (j < entities_len and entities[j].base.pos.x < max_pos) {
+                    while (j < len and entities[j].base.pos.x < max_pos) {
                         const e2 = entities[j];
                         // engine.perf.checks += 1;
 
@@ -380,40 +399,54 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn updateEntity(entity: *T) void {
-            if (vtab(entity.kind).update) |upd| {
-                upd(entity);
-            }
+            vtab(entity.kind).update.?(entity);
         }
 
         pub fn drawEntity(entity: *T, vp: Vec2) void {
-            if (vtab(entity.kind).draw) |draw| {
-                draw(entity, vp);
-            }
+            vtab(entity.kind).draw.?(entity, vp);
         }
 
-        fn touchEntity(e1: *T, e2: *T) void {
-            if (vtab(e1.kind).touch) |touch| {
-                touch(e1, e2);
-            }
+        pub fn touchEntity(e1: *T, e2: *T) void {
+            vtab(e1.kind).touch.?(e1, e2);
         }
 
-        pub fn killEntity(entity: *T) void {
+        pub fn entityMessage(e1: *T, message: anytype, data: ?*anyopaque) void {
+            vtab(e1.kind).message.?(e1, @ptrFromInt(@intFromEnum(message)), data);
+        }
+
+        pub fn entityKill(entity: *T) void {
             entity.base.is_alive = false;
-            if (vtab(entity.kind).kill) |kill| {
-                kill(entity);
+            vtab(entity.kind).kill.?(entity);
+        }
+
+        pub fn entityDamage(entity: *T, other: *T, value: f32) void {
+            vtab(entity.kind).damage.?(entity, other, value);
+        }
+
+        pub fn entitySettings(e: *T, value: ObjectMap) void {
+            if (vtab(e.kind).settings) |s| {
+                s(e, value);
             }
         }
 
-        fn settingsEntity(e: *T, settings: ObjectMap) void {
-            _ = e;
-            _ = settings;
-            // vtab(e.kind).settings.?(e, settings);
+        pub fn entityCenter(ent: *T) Vec2 {
+            return ent.base.pos.add(ent.base.size.mulf(0.5));
         }
 
-        fn collideEntity(e: *T, normal: Vec2, t: ?Trace) void {
-            if (vtab(e.kind).collide) |collide| {
-                collide(e, normal, t);
-            }
+        pub fn entityDist(a: *T, b: *T) f32 {
+            return entityCenter(a).dist(entityCenter(b));
+        }
+
+        pub fn entityAngle(a: *T, b: *T) f32 {
+            return entityCenter(a).angle(entityCenter(b));
+        }
+
+        pub fn collideEntity(e: *T, normal: Vec2, t: ?Trace) void {
+            vtab(e.kind).collide.?(e, normal, t);
+        }
+
+        pub fn entityTrigger(e: *T, other: *T) void {
+            vtab(e.kind).trigger.?(e, other);
         }
 
         fn entityResolveCollision(a: *T, b: *T) void {
@@ -579,21 +612,18 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             self.base.vel = rotated_normal.mulf(vel_along_normal);
         }
 
-        fn entityRef(self: ?*T) EntityRef {
+        pub fn entityRef(self: ?*T) EntityRef {
             if (self) |me| {
-                for (0..entities_len) |i| {
-                    if (entities[i] == me) {
-                        return .{
-                            .id = me.base.id,
-                            .index = @intCast(i),
-                        };
-                    }
-                }
+                return .{
+                    .id = me.base.id,
+                    .index = @intCast((@as(usize, @intFromPtr(me)) - @as(usize, @intFromPtr(&entities_storage[0]))) / @sizeOf(T)),
+                };
             }
             return entityRefNone();
         }
 
-        pub fn spawn(kind: anytype, pos: Vec2) *T {
+        pub fn spawn(kind: anytype, pos: Vec2) ?*T {
+            if (entities_len >= ENTITIES_MAX) return null;
             const ent = entities[entities_len];
             entities_len += 1;
             entity_unique_id += 1;
@@ -616,7 +646,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             return ent;
         }
 
-        fn vtab(kind: anytype) EntityVtab(T) {
+        inline fn vtab(kind: anytype) EntityVtab(T) {
             return entity_vtab[@intFromEnum(kind)];
         }
 
@@ -643,8 +673,32 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             return list;
         }
 
+        pub fn entityByName(name: []const u8) ?*T {
+            // FIXME:PERF: linear search
+            for (entities[0..entities_len]) |entity| {
+                if (entity.base.is_alive and entity.base.name.len > 0 and std.mem.eql(u8, name, entity.base.name)) {
+                    return entity;
+                }
+            }
+
+            return null;
+        }
+
+        pub fn entitiesFromJsonNames(targets: std.json.ObjectMap) std.ArrayList(EntityRef) {
+            var ba = alloc.BumpAllocator{};
+            var list = std.ArrayList(EntityRef).init(ba.allocator());
+
+            for (targets.values()) |value| {
+                const target_name = value.string;
+                if (entityByName(target_name)) |target| {
+                    list.append(entityRef(target)) catch @panic("failed to append");
+                }
+            }
+            return list;
+        }
+
         pub fn entityByRef(ref: EntityRef) ?*T {
-            const ent = entities[ref.index];
+            const ent = &entities_storage[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
                 return ent;
             }
@@ -661,7 +715,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             const draw_ents = ba.allocator().alloc(*T, entities_len) catch @panic("failed to alloc");
             @memcpy(draw_ents[0..], entities[0..entities_len]);
 
-            std.sort.heap(*T, draw_ents[0..entities_len], {}, cmpEntity);
+            std.sort.insertion(*T, draw_ents[0..entities_len], {}, cmpEntity);
 
             for (0..entities_len) |i| {
                 const ent = draw_ents[i];
@@ -675,7 +729,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         const EntitySettings = struct {
-            entity: T,
+            entity: *T,
             settings: ObjectMap,
         };
 
@@ -690,7 +744,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             background_maps_len = 0;
             collision_map = null;
 
-            const maps = root.object.get("maps");
+            const maps = root.value.object.get("maps");
             for (maps.?.array.items) |map_def| {
                 const name = map_def.object.get("name").?.string;
                 const map = Map.initFromJson(map_def);
@@ -702,7 +756,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 }
             }
 
-            const etts = root.object.get("entities");
+            const etts = root.value.object.get("entities");
 
             // Remember all entities with settings; we want to apply these settings
             // only after all entities have been spawned.
@@ -715,29 +769,34 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 assert(type_name.len > 0); // "Entity has no type"
 
                 const kind = std.meta.stringToEnum(TKind, type_name);
-                if (kind == null) continue;
-                std.log.info("type_name: {s}, {?}", .{ type_name, kind });
+                if (kind == null) {
+                    std.log.warn("Entity {s} not found", .{type_name});
+                    continue;
+                }
+
                 const pos = vec2(@as(f32, @floatFromInt(def.object.get("x").?.integer)), @as(f32, @floatFromInt(def.object.get("y").?.integer)));
 
-                var ent = spawn(kind, pos);
-                const settings = def.object.get("settings");
-                if (settings) |s| {
-                    switch (s) {
-                        .object => |obj| {
-                            // Copy name, if we have one
-                            const name = obj.get("name").?.string;
-                            ent.base.name = name;
-                            entity_settings[entity_settings_len].entity = ent;
-                            entity_settings[entity_settings_len].settings = obj;
-                            entity_settings_len += 1;
-                        },
-                        else => {},
+                if (spawn(kind.?, pos)) |ent| {
+                    const settings = def.object.get("settings");
+                    if (settings) |s| {
+                        switch (s) {
+                            .object => |obj| {
+                                // Copy name, if we have one
+                                if (obj.get("name")) |name| {
+                                    ent.base.name = name.string;
+                                }
+                                entity_settings[entity_settings_len].entity = ent;
+                                entity_settings[entity_settings_len].settings = obj;
+                                entity_settings_len += 1;
+                            },
+                            else => {},
+                        }
                     }
                 }
             }
 
-            for (entity_settings[0..entities.len]) |*settings| {
-                settingsEntity(&settings.entity, settings.settings);
+            for (entity_settings[0..entity_settings_len]) |*settings| {
+                entitySettings(settings.entity, settings.settings);
             }
             // temp_free(json);
         }

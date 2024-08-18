@@ -21,7 +21,7 @@ pub const SoundSource = struct {
     pcm_samples: []i16,
 };
 
-const Sound = struct {
+pub const Sound = struct {
     id: u16,
     index: u16,
 };
@@ -234,7 +234,7 @@ pub fn sourceDuration(src: *SoundSource) f32 {
 /// can not be re-used until it is disposed via sound_dispose(). The node will be
 /// in a paused state and must be explicitly unpaused. Returns an invalid node
 /// with id = 0 when no free node is available.
-fn sound(src: *SoundSource) ?Sound {
+pub fn sound(src: *SoundSource) ?Sound {
     var snd = Sound{ .id = 0, .index = 0 };
     var node: ?*SoundNode = null;
 
@@ -336,7 +336,7 @@ pub fn time(snd: Sound) f32 {
 /// node's current pitch into account
 pub fn setTime(snd: Sound, value: f32) void {
     if (getNode(snd)) |node| {
-        node.sample_pos = std.math.clamp(value / node.source.samplerate, 0, node.source.len);
+        node.sample_pos = std.math.clamp(value / @as(f32, @floatFromInt(node.source.samplerate)), 0, @as(f32, @floatFromInt(node.source.len)));
     }
 }
 
@@ -365,7 +365,7 @@ pub fn setLoop(snd: Sound, value: bool) void {
 }
 
 /// Periodically called by the platform to mix playing nodes into output buffer
-pub fn mix_stereo(dest_samples: []f32) void {
+pub fn mixStereo(dest_samples: []f32) void {
     @memset(dest_samples, 0);
 
     // Samples are stored as int16_t; we have to multiply each sample with

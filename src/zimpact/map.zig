@@ -70,12 +70,12 @@ pub const Map = struct {
     /// 		[3,2,1,0],
     /// 	]
     /// }
-    pub fn initFromJson(root: Value) Map {
+    pub fn initFromJson(root: Value) *Map {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-        assert(!engine.isRunning());
+        assert(!engine.is_running);
 
-        var map: Map = undefined;
+        var map: *Map = gpa.allocator().create(Map) catch @panic("failed to allocate map");
         map.anims = null;
         map.size = vec2i(getInt(i32, root.object, "width"), getInt(i32, root.object, "height"));
         map.tile_size = getInt(u16, root.object, "tilesize");
@@ -84,7 +84,7 @@ pub const Map = struct {
         assert(map.distance != 0); // invalid distance for map
         map.repeat = root.object.get("repeat").?.bool;
 
-        std.log.info("map_size: {}, map.tile_size: {}, map.distance: {}", .{ map.size, map.tile_size, map.distance });
+        // std.log.info("map_size: {}, map.tile_size: {}, map.distance: {}", .{ map.size, map.tile_size, map.distance });
 
         switch (root.object.get("name").?) {
             .string => |name| @memcpy(map.name[0..name.len], name),
@@ -196,7 +196,7 @@ pub const Map = struct {
     /// Set the frame time and animation sequence for a particular tile. You can
     /// only do this in your scene_init()
     pub fn setAnim(self: *Map, tile: u16, frame_time: f32, sequence: []const u16) void {
-        assert(!engine.isRunning()); // Cannot set map animation during gameplay
+        // assert(!engine.isRunning()); // Cannot set map animation during gameplay
         assert(sequence.len > 0); // Map animation has empty sequence
 
         if (tile > self.max_tile) {

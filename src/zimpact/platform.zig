@@ -229,7 +229,7 @@ pub export fn platformHandleEvent(ev: [*c]const sapp.Event) void {
         const code: Button = keyboard_map[@intCast(@intFromEnum(ev.*.key_code))];
         input.setButtonState(code, state);
     } else if (ev.*.type == sapp.EventType.CHAR) {
-        // TODO: input_textinput(ev.char_code);
+        input.textInput(ev.*.char_code);
     }
 
     // Input Gamepad Axis

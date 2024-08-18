@@ -139,6 +139,6 @@ pub fn EntityVtab(comptime T: type) type {
         trigger: ?*const fn (self: *T, other: *T) void = null,
 
         // Called through entity_message()
-        // TODO: message: ?*const fn (self: *Entity, message: EntityMessage, data: *T) void = null,
+        message: ?*const fn (self: *T, message: ?*anyopaque, data: ?*anyopaque) void = null,
     };
 }

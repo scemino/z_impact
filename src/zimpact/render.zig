@@ -7,6 +7,7 @@ const Texture = @import("texture.zig").Texture;
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const Vec2i = types.Vec2i;
+const vec2i = types.vec2i;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
@@ -29,17 +30,16 @@ const RENDER_RESIZE_ANY = 3;
 
 const RENDER_RESIZE_MODE = RENDER_RESIZE_NONE;
 
-pub const RENDER_WIDTH = 64;
-pub const RENDER_HEIGHT = 96;
 pub const RENDER_SCALE_MODE = RENDER_SCALE_DISCRETE;
 
-var logical_size: Vec2i = types.vec2i(RENDER_WIDTH, RENDER_HEIGHT);
+var logical_size: Vec2i = types.vec2i(64, 96);
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;
 var screen_size: Vec2i = types.vec2i(0, 0);
 var pip: sgl.Pipeline = .{};
 var pass_action: sg.PassAction = .{};
+pub var NO_TEXTURE: Texture = undefined;
 
 /// A renderer is responsible for drawing on the screen. Images, Fonts and
 /// Animations ulitmately use the render_* functions to be drawn.
@@ -47,7 +47,8 @@ var pass_action: sg.PassAction = .{};
 /// of functions.
 ///
 /// Called by the platform
-pub fn init() void {
+pub fn init(size: Vec2i) void {
+    logical_size = size;
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -67,6 +68,9 @@ pub fn init() void {
         .dst_factor_rgb = sg.BlendFactor.ONE_MINUS_SRC_ALPHA,
     };
     pip = sgl.makePipeline(desc);
+
+    const white_pixels = [1]Rgba{types.white()} ** 4;
+    NO_TEXTURE = Texture.init(vec2i(2, 2), &white_pixels);
 }
 
 /// Called by the platform
@@ -84,7 +88,7 @@ pub fn framePrepare() void {
     sgl.defaults();
     sgl.loadPipeline(pip);
     sgl.matrixModeProjection();
-    sgl.ortho(0, RENDER_WIDTH, RENDER_HEIGHT, 0.0, -1, 1);
+    sgl.ortho(0, @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(logical_size.y)), 0.0, -1, 1);
     sgl.matrixModeModelview();
     sgl.loadIdentity();
 }
@@ -171,7 +175,7 @@ pub fn resize(avaiable_size: Vec2i) void {
     if (RENDER_SCALE_MODE == RENDER_SCALE_NONE) {
         screen_scale = 1;
     } else {
-        screen_scale = @min(@as(f32, @floatFromInt(avaiable_size.x)) / @as(f32, @floatFromInt(RENDER_WIDTH)), @as(f32, @floatFromInt(avaiable_size.y)) / @as(f32, @floatFromInt(RENDER_HEIGHT)));
+        screen_scale = @min(@as(f32, @floatFromInt(avaiable_size.x)) / @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(avaiable_size.y)) / @as(f32, @floatFromInt(logical_size.y)));
 
         if (RENDER_SCALE_MODE == RENDER_SCALE_DISCRETE) {
             screen_scale = @max(@floor(screen_scale), 0.5);
@@ -180,15 +184,15 @@ pub fn resize(avaiable_size: Vec2i) void {
 
     // Determine size
     if ((RENDER_RESIZE_MODE & RENDER_RESIZE_WIDTH) != 0) {
-        screen_size.x = @max(avaiable_size.x, RENDER_WIDTH);
+        screen_size.x = @max(avaiable_size.x, logical_size.x);
     } else {
-        screen_size.x = @as(i32, @intCast(RENDER_WIDTH)) * @as(i32, @intFromFloat(screen_scale));
+        screen_size.x = @as(i32, @intCast(logical_size.x)) * @as(i32, @intFromFloat(screen_scale));
     }
 
     if ((RENDER_RESIZE_MODE & RENDER_RESIZE_HEIGHT) != 0) {
-        screen_size.y = @max(avaiable_size.y, RENDER_HEIGHT);
+        screen_size.y = @max(avaiable_size.y, logical_size.y);
     } else {
-        screen_size.y = @as(i32, @intCast(RENDER_HEIGHT)) * @as(i32, @intFromFloat(screen_scale));
+        screen_size.y = @as(i32, @intCast(logical_size.y)) * @as(i32, @intFromFloat(screen_scale));
     }
 
     logical_size.x = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.x)) / screen_scale));

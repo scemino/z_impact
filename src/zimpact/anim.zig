@@ -4,7 +4,7 @@ const img = @import("image.zig");
 const types = @import("types.zig");
 const engine = @import("engine.zig");
 const render = @import("render.zig");
-const rand_int = @import("utils.zig").rand_int;
+const randInt = @import("utils.zig").randInt;
 const vec2 = types.vec2;
 const Rgba = types.Rgba;
 const Vec2 = types.Vec2;
@@ -62,18 +62,21 @@ pub const Anim = struct {
 
     /// Goto to the nth index of the sequence
     pub fn goto(self: *Anim, frame: usize) void {
-        self.start_time = engine.time + frame * anim.def.frame_time;
+        self.start_time = engine.time + @as(f64, @floatFromInt(frame)) * self.def.?.frame_time;
     }
 
     /// Goto a random frame of the sequence
     pub fn gotoRand(self: *Anim) void {
-        self.goto(rand_int(0, anim.def.sequence_len - 1));
+        self.goto(@intCast(randInt(0, @as(i32, @intCast(self.def.?.sequence.len - 1)))));
     }
 
     /// Return the number of times this animation has played through
     pub fn looped(self: *Anim) u32 {
-        const diff = engine.time - self.start_time;
-        return (diff * self.def.inv_total_time);
+        if (self.def) |def| {
+            const diff: f64 = engine.time - self.start_time;
+            return @intFromFloat(diff * def.inv_total_time);
+        }
+        return 0;
     }
 };
 
@@ -93,6 +96,6 @@ pub fn animDef(sheet: *const img.Image, frame_size: Vec2i, frame_time: f32, sequ
 }
 
 /// Create an Anim instance with the given AnimDef
-pub fn anim(anim_def: *const AnimDef) Anim {
+pub fn anim(anim_def: ?*const AnimDef) Anim {
     return .{ .def = anim_def, .color = types.white(), .start_time = engine.time };
 }

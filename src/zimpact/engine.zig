@@ -68,14 +68,15 @@ var background_maps_len: u32 = 0;
 pub var viewport: Vec2 = .{ .x = 0, .y = 0 };
 
 // Various infos about the last frame
-// struct {
-// 	int entities;
-// 	int checks;
-// 	int draw_calls;
-// 	float update;
-// 	float draw;
-// 	float total;
-// } perf;
+const Perf = struct {
+    entities: usize,
+    checks: usize,
+    draw_calls: usize,
+    update: f32,
+    draw: f32,
+    total: f32,
+};
+pub var perf: Perf = undefined;
 
 var scene: ?*Scene = null;
 var scene_next: ?*Scene = null;
@@ -125,7 +126,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn update() void {
-            // const time_frame_start = platform.now();
+            const time_frame_start = platform.now();
 
             // Do we want to switch scenes?
             if (scene_next) |scene_n| {
@@ -174,7 +175,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     sceneBaseUpdate();
                 }
 
-                // perf.update = platform_now() - time_real_now;
+                perf.update = @floatCast(platform.now() - time_real_now);
 
                 render.framePrepare();
 
@@ -186,7 +187,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 }
 
                 render.frameEnd();
-                // engine.perf.draw = (platform_now() - time_real_now) - engine.perf.update;
+                perf.draw = @as(f32, @floatCast(platform.now() - time_real_now)) - perf.update;
                 alloc.bumpReset(mark);
                 mark.index = 0xFFFFFFFF;
             }
@@ -194,8 +195,8 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             input.clear();
             // temp.alloc_check();
 
-            // engine.perf.draw_calls = render_draw_calls();
-            // engine.perf.total = platform_now() - time_frame_start;
+            // perf.draw_calls = render.drawCalls();
+            perf.total = @floatCast(platform.now() - time_frame_start);
         }
 
         pub fn cleanup() void {
@@ -347,11 +348,9 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             const len: usize = entities_len;
 
             // Sweep touches
-            // engine.perf.checks = 0;
+            perf.checks = 0;
             i = 0;
-            for (entities) |e1| {
-                if (i == len) break;
-
+            for (entities[0..len]) |e1| {
                 if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
                     e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
                 {
@@ -359,7 +358,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                     var j: usize = i + 1;
                     while (j < len and entities[j].base.pos.x < max_pos) {
                         const e2 = entities[j];
-                        // engine.perf.checks += 1;
+                        perf.checks += 1;
 
                         if (entityIsTouching(e1, e2)) {
                             if (contains(e1.base.check_against, e2.base.group)) {
@@ -383,15 +382,16 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 i += 1;
             }
 
-            //engine.perf.entities = entities_len;
+            perf.entities = entities_len;
         }
+
         fn contains(g1: u8, g2: u8) bool {
             return (g1 & g2) != 0;
         }
 
         fn cmpEntityPos(context: void, a: *T, b: *T) bool {
             _ = context;
-            return a.base.pos.x > b.base.pos.x;
+            return a.base.pos.x <= b.base.pos.x;
         }
 
         fn initEntity(entity: *T) void {
@@ -631,7 +631,18 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 .base = .{
                     .id = entity_unique_id,
                     .is_alive = true,
+                    .on_ground = false,
+                    .draw_order = 0,
+                    .physics = ett.ENTITY_GROUP_NONE,
+                    .group = ett.ENTITY_GROUP_NONE,
+                    .check_against = ett.ENTITY_GROUP_NONE,
                     .pos = pos,
+                    .vel = vec2(0, 0),
+                    .accel = vec2(0, 0),
+                    .friction = vec2(0, 0),
+                    .offset = vec2(0, 0),
+                    .health = 0,
+                    .restitution = 0,
                     .max_ground_normal = 0.69, // cosf(to_radians(46)),
                     .min_slide_normal = 1, // cosf(to_radians(0)),
                     .gravity = 1,
@@ -725,7 +736,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         fn cmpEntity(context: void, lhs: *T, rhs: *T) bool {
             _ = context;
-            return lhs.base.draw_order > rhs.base.draw_order;
+            return lhs.base.draw_order <= rhs.base.draw_order;
         }
 
         const EntitySettings = struct {

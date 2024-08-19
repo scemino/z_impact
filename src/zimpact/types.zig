@@ -108,19 +108,19 @@ pub const Rgba = struct {
         return self.components[3];
     }
 
-    pub inline fn setR(self: Rgba, value: u8) void {
+    pub inline fn setR(self: *Rgba, value: u8) void {
         self.components[0] = value;
     }
 
-    pub inline fn setG(self: Rgba, value: u8) void {
+    pub inline fn setG(self: *Rgba, value: u8) void {
         self.components[1] = value;
     }
 
-    pub inline fn setB(self: Rgba, value: u8) void {
+    pub inline fn setB(self: *Rgba, value: u8) void {
         self.components[2] = value;
     }
 
-    pub inline fn setA(self: Rgba, value: u8) void {
+    pub inline fn setA(self: *Rgba, value: u8) void {
         self.components[3] = value;
     }
 

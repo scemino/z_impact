@@ -13,9 +13,6 @@ const AnimDef = zi.AnimDef;
 const render = zi.render;
 const input = zi.input;
 const ett = zi.entity;
-const Engine = zi.Engine;
-const engine = Engine(game.Entity, game.EntityKind);
-const Trace = zi.Trace;
 const snd = zi.sound;
 
 pub const A_LEFT: u8 = 1;
@@ -51,11 +48,11 @@ fn update(self: *Entity) void {
     } else {
         self.base.accel.x = 0;
     }
-    engine.baseUpdate(self);
+    game.engine.baseUpdate(self);
 }
 
 fn draw(self: *Entity, vp: Vec2) void {
-    engine.entityBaseDraw(self, vp);
+    game.engine.entityBaseDraw(self, vp);
 
     // Draw arrows when player is off-screen
     if (self.base.pos.y < vp.y - 4) {
@@ -67,13 +64,13 @@ fn draw(self: *Entity, vp: Vec2) void {
     }
 }
 
-fn collide(self: *Entity, normal: Vec2, _: ?Trace) void {
+fn collide(self: *Entity, normal: Vec2, _: ?zi.Trace) void {
     if (normal.y == -1 and self.base.vel.y > 32) {
         snd.play(sound_bounce);
     }
 }
 
-pub var vtab: EntityVtab(Entity) = .{
+pub const vtab: EntityVtab(Entity) = .{
     .load = load,
     .init = init,
     .update = update,

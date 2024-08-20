@@ -146,8 +146,8 @@ fn keyboard_map_init() [349]Button {
     return btns;
 }
 
-// Called by the platform
-pub fn init() void {
+fn init() void {
+    stm.setup();
     saudio.setup(.{
         .sample_rate = @intCast(platform_output_samplerate),
         .buffer_frames = 1024,
@@ -273,4 +273,40 @@ fn platformAudioCallback(buffer: [*c]f32, num_frames: i32, num_channels: i32) ca
     } else {
         @memset(buffer[0..@intCast(num_frames * num_channels)], 0);
     }
+}
+
+export fn app_init() void {
+    desc.init_cb.?();
+}
+
+export fn app_update() void {
+    desc.update_cb.?();
+}
+
+export fn app_cleanup() void {
+    desc.cleanup_cb.?();
+}
+
+pub const Desc = struct {
+    update_cb: ?*const fn () void = null,
+    init_cb: ?*const fn () void = null,
+    cleanup_cb: ?*const fn () void = null,
+    window_title: ?[:0]const u8 = null,
+    window_size: Vec2i = types.vec2i(1280, 720),
+};
+
+var desc: Desc = undefined;
+
+pub fn run(d: Desc) void {
+    desc = d;
+    init();
+    sapp.run(.{
+        .init_cb = app_init,
+        .frame_cb = app_update,
+        .cleanup_cb = app_cleanup,
+        .event_cb = &platformHandleEvent,
+        .window_title = d.window_title orelse "Z Impact Game",
+        .width = d.window_size.x,
+        .height = d.window_size.y,
+    });
 }

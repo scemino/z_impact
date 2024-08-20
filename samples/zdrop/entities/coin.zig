@@ -13,9 +13,7 @@ const Vec2i = zi.Vec2i;
 const vec2 = zi.vec2;
 const Vec2 = zi.Vec2;
 const vec2i = zi.vec2i;
-const engine = zi.engine;
 const snd = zi.sound;
-const Engine = zi.Engine(game.Entity, game.EntityKind);
 
 var anim_idle: AnimDef = undefined;
 var sound_collect: *snd.SoundSource = undefined;
@@ -35,8 +33,8 @@ fn init(self: *Entity) void {
 }
 
 fn update(self: *Entity) void {
-    if ((self.base.pos.y - engine.viewport.y) < -32) {
-        Engine.entityKill(self);
+    if ((self.base.pos.y - zi.engine.viewport.y) < -32) {
+        game.engine.entityKill(self);
     }
 }
 
@@ -44,10 +42,10 @@ fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
     snd.play(sound_collect);
-    Engine.entityKill(self);
+    game.engine.entityKill(self);
 }
 
-pub var vtab: EntityVtab(Entity) = .{
+pub const vtab: EntityVtab(Entity) = .{
     .load = load,
     .init = init,
     .update = update,

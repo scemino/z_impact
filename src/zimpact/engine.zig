@@ -78,15 +78,15 @@ const Perf = struct {
 };
 pub var perf: Perf = undefined;
 
-var scene: ?*Scene = null;
-var scene_next: ?*Scene = null;
+var scene: ?*const Scene = null;
+var scene_next: ?*const Scene = null;
 var init_textures_mark: texture.TextureMark = .{};
 var init_images_mark: img.ImageMark = .{};
 var init_bump_mark: alloc.BumpMark = .{};
 var init_sounds_mark: snd.SoundMark = .{};
 pub var is_running = false;
 
-pub fn Engine(comptime T: type, comptime TKind: type) type {
+pub fn Engine(comptime T: type) type {
     return struct {
         // A global multiplier that affects the gravity of all entities. This only
         // makes sense for side view games. For a top-down game you'd want to have
@@ -101,23 +101,37 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         var entities_len: usize = 0;
         var entity_unique_id: u16 = 0;
         var render_size: Vec2i = undefined;
+        var main_init: ?*const fn () void = null;
 
         const Desc = struct {
-            vtabs: []EntityVtab(T),
+            vtabs: []const EntityVtab(T),
             render_size: Vec2i,
-            main_init: ?*const fn () void = null,
+            init: ?*const fn () void = null,
+            window_title: ?[:0]const u8 = null,
+            window_size: Vec2i = types.vec2i(1280, 720),
         };
 
-        pub fn init(desc: Desc) void {
+        pub fn run(desc: Desc) void {
+            entity_vtab = desc.vtabs;
             render_size = desc.render_size;
+            main_init = desc.init;
+            platform.run(.{
+                .init_cb = engineInit,
+                .cleanup_cb = cleanup,
+                .update_cb = update,
+                .window_title = desc.window_title,
+                .window_size = desc.window_size,
+            });
+        }
+
+        fn engineInit() void {
             time_real = platform.now();
             renderInit(platform.screenSize());
             snd.init(platform.samplerate());
-            platform.init();
             platform.setAudioMixCb(snd.mixStereo);
             // input_init();
-            initEntities(desc.vtabs);
-            if (desc.main_init) |main_init| main_init();
+            initEntities(entity_vtab);
+            if (main_init) |i| i();
 
             init_bump_mark = alloc.bumpMark();
             init_images_mark = img.imagesMark();
@@ -212,7 +226,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         // at the beginning of the next frame, so it's ok to call engine_set_scene()
         // from the middle of a frame.
         // Your main_init() function must call engine_set_scene() to set first scene.
-        pub fn setScene(s: *Scene) void {
+        pub fn setScene(s: *const Scene) void {
             scene_next = s;
         }
 
@@ -255,9 +269,8 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn baseUpdate(self: *T) void {
-            if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) == 0) {
+            if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) != ett.ENTITY_PHYSICS_MOVE)
                 return;
-            }
 
             // Integrate velocity
             const v = self.base.vel;
@@ -284,38 +297,10 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
             render.resize(avaiable_size);
         }
 
-        // zig fmt: off
-        fn noopLoad() void {}
-        fn noopInit(_: *T) void {  }
-        fn noopKill(_: *T) void {  }
-        fn noopSettings(_: *T, _: ObjectMap) void {}
-        fn noopTouch(_: *T, _: *T) void { }
-        fn noopCollide(_: *T, _: Vec2, _: ?Trace) void {}
-        fn noopTrigger(_: *T, _: *T) void {}
-        fn noopMessage(_: *T, _: ?*anyopaque, _: ?*anyopaque) void {}
-        // zig fmt: on
-
-        fn initEntities(vtabs: []EntityVtab(T)) void {
+        fn initEntities(vtabs: []const EntityVtab(T)) void {
             entity_vtab = vtabs;
-            for (0..vtabs.len) |i| {
-                const e_vtab = &vtabs[i];
-                // zig fmt: off
-                if ( e_vtab.load == null )     { vtabs[i].load = noopLoad; }
-                if ( e_vtab.init == null )     { vtabs[i].init = noopInit; }
-                if ( e_vtab.settings == null ) { vtabs[i].settings = noopSettings; }
-                if ( e_vtab.update == null )   { vtabs[i].update = baseUpdate; }
-                if ( e_vtab.draw == null )     { vtabs[i].draw = entityBaseDraw; }
-                if ( e_vtab.kill == null )     { vtabs[i].kill = noopKill; }
-                if ( e_vtab.touch == null )    { vtabs[i].touch = noopTouch; }
-                if ( e_vtab.collide == null )  { vtabs[i].collide = noopCollide; }
-                if ( e_vtab.damage == null )   { vtabs[i].damage = entityBaseDamage; }
-                if ( e_vtab.trigger == null )  { vtabs[i].trigger = noopTrigger; }
-                if ( e_vtab.message == null )  { vtabs[i].message = noopMessage; }
-                // zig fmt: on
-
-                if (e_vtab.load) |load| {
-                    load();
-                }
+            for (vtabs) |v| {
+                v.load();
             }
 
             entitiesReset();
@@ -395,38 +380,36 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         fn initEntity(entity: *T) void {
-            vtab(entity.kind).init.?(entity);
+            vtab(entity.kind).init(entity);
         }
 
         fn updateEntity(entity: *T) void {
-            vtab(entity.kind).update.?(entity);
+            vtab(entity.kind).update(entity);
         }
 
         pub fn drawEntity(entity: *T, vp: Vec2) void {
-            vtab(entity.kind).draw.?(entity, vp);
+            vtab(entity.kind).draw(entity, vp);
         }
 
         pub fn touchEntity(e1: *T, e2: *T) void {
-            vtab(e1.kind).touch.?(e1, e2);
+            vtab(e1.kind).touch(e1, e2);
         }
 
         pub fn entityMessage(e1: *T, message: anytype, data: ?*anyopaque) void {
-            vtab(e1.kind).message.?(e1, @ptrFromInt(@intFromEnum(message)), data);
+            vtab(e1.kind).message(e1, @ptrFromInt(@intFromEnum(message)), data);
         }
 
         pub fn entityKill(entity: *T) void {
             entity.base.is_alive = false;
-            vtab(entity.kind).kill.?(entity);
+            vtab(entity.kind).kill(entity);
         }
 
         pub fn entityDamage(entity: *T, other: *T, value: f32) void {
-            vtab(entity.kind).damage.?(entity, other, value);
+            vtab(entity.kind).damage(entity, other, value);
         }
 
         pub fn entitySettings(e: *T, value: ObjectMap) void {
-            if (vtab(e.kind).settings) |s| {
-                s(e, value);
-            }
+            vtab(e.kind).settings(e, value);
         }
 
         pub fn entityCenter(ent: *T) Vec2 {
@@ -442,11 +425,11 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
         }
 
         pub fn collideEntity(e: *T, normal: Vec2, t: ?Trace) void {
-            vtab(e.kind).collide.?(e, normal, t);
+            vtab(e.kind).collide(e, normal, t);
         }
 
         pub fn entityTrigger(e: *T, other: *T) void {
-            vtab(e.kind).trigger.?(e, other);
+            vtab(e.kind).trigger(e, other);
         }
 
         fn entityResolveCollision(a: *T, b: *T) void {
@@ -668,7 +651,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
                 self.base.pos.y + self.base.size.y <= other.base.pos.y);
         }
 
-        pub fn entitiesByType(kind: TKind) std.ArrayList(EntityRef) {
+        pub fn entitiesByType(kind: anytype) std.ArrayList(EntityRef) {
             var ba = alloc.BumpAllocator{};
             var list = std.ArrayList(EntityRef).init(ba.allocator());
             // FIXME:PERF: linear search
@@ -746,7 +729,7 @@ pub fn Engine(comptime T: type, comptime TKind: type) type {
 
         /// Load a level (background maps, collision map and entities) from a json path.
         /// This should only be called from within your scenes init() function.
-        pub fn loadLevel(json_path: []const u8) void {
+        pub fn loadLevel(comptime TKind: type, json_path: []const u8) void {
             var gpa = std.heap.GeneralPurposeAllocator(.{}){};
             const root = platform.loadAssetJson(json_path, gpa.allocator());
             defer root.deinit();

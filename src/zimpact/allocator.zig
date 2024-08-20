@@ -164,3 +164,15 @@ pub fn bumpMark() BumpMark {
 pub fn bumpReset(mark: BumpMark) void {
     bump_len = mark.index;
 }
+
+/// Move bytes from temp to bump memory. This is essentially a shorthand for
+/// `bump_alloc(); memcpy(); temp_free();` without the requirement to fit both
+/// (temp and bump) into the hunk at the same time.
+pub fn bumpFromTemp(comptime T: type, temp: []T, offset: usize, size: usize) []T {
+    var ta = TempAllocator{};
+    ta.allocator().free(temp);
+    assert(bump_len + temp_len + size < ALLOC_SIZE); //, "Failed to allocate %d bytes in hunk mem", size);
+    var fa = std.heap.FixedBufferAllocator.init(hunk[bump_len .. bump_len + size]);
+    bump_len += size;
+    return fa.allocator().dupe(T, temp[offset .. offset + size]) catch @panic("failed to bump from temp");
+}

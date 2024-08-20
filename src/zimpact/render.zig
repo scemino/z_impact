@@ -37,9 +37,14 @@ var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;
 var screen_size: Vec2i = types.vec2i(0, 0);
+var pip_normal: sgl.Pipeline = .{};
+var pip_lighter: sgl.Pipeline = .{};
 var pip: sgl.Pipeline = .{};
 var pass_action: sg.PassAction = .{};
 pub var NO_TEXTURE: Texture = undefined;
+var blend_mode: BlendMode = .normal;
+
+pub const BlendMode = enum { normal, lighter };
 
 /// A renderer is responsible for drawing on the screen. Images, Fonts and
 /// Animations ulitmately use the render_* functions to be drawn.
@@ -67,7 +72,14 @@ pub fn init(size: Vec2i) void {
         .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
         .dst_factor_rgb = sg.BlendFactor.ONE_MINUS_SRC_ALPHA,
     };
-    pip = sgl.makePipeline(desc);
+    pip_normal = sgl.makePipeline(desc);
+    desc.colors[0].blend = .{
+        .enabled = true,
+        .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
+        .dst_factor_rgb = .ONE,
+    };
+    pip_lighter = sgl.makePipeline(desc);
+    pip = pip_normal;
 
     const white_pixels = [1]Rgba{types.white()} ** 4;
     NO_TEXTURE = Texture.init(vec2i(2, 2), &white_pixels);
@@ -75,7 +87,8 @@ pub fn init(size: Vec2i) void {
 
 /// Called by the platform
 pub fn cleanup() void {
-    sgl.destroyPipeline(pip);
+    sgl.destroyPipeline(pip_normal);
+    sgl.destroyPipeline(pip_lighter);
     sgl.shutdown();
     sg.shutdown();
 }
@@ -199,4 +212,13 @@ pub fn resize(avaiable_size: Vec2i) void {
     logical_size.y = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.y)) / screen_scale));
     inv_screen_scale = 1.0 / screen_scale;
     // setScreen(screen_size);
+}
+
+pub fn setBlendMode(new_mode: BlendMode) void {
+    if (new_mode == blend_mode)
+        return;
+
+    blend_mode = new_mode;
+    pip = if (blend_mode == .normal) pip_normal else pip_lighter;
+    sgl.loadPipeline(pip);
 }

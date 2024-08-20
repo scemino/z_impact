@@ -207,7 +207,7 @@ pub fn Engine(comptime T: type) type {
             }
 
             input.clear();
-            // temp.alloc_check();
+            alloc.tempAllocCheck();
 
             // perf.draw_calls = render.drawCalls();
             perf.total = @floatCast(platform.now() - time_frame_start);
@@ -234,7 +234,7 @@ pub fn Engine(comptime T: type) type {
             const px_viewport = render.snapPx(viewport);
 
             // Background maps
-            for (background_maps) |map| {
+            for (background_maps[0..background_maps_len]) |map| {
                 if (map) |m| {
                     if (!m.foreground) {
                         m.draw(px_viewport);
@@ -245,7 +245,7 @@ pub fn Engine(comptime T: type) type {
             entitiesDraw(px_viewport);
 
             // Foreground maps
-            for (background_maps) |map| {
+            for (background_maps[0..background_maps_len]) |map| {
                 if (map) |m| {
                     if (m.foreground) {
                         m.draw(px_viewport);

@@ -150,6 +150,15 @@ pub const TempAllocator = struct {
     }
 };
 
+/// Check if temp is empty, or die()
+pub fn tempAllocCheck() void {
+    if (temp_len != 0) {
+        std.log.err("Temp memory not free: {} object(s)", .{temp_objects_len});
+        assert(false);
+    }
+}
+
+/// Allocate `size` bytes in bump memory
 pub fn bumpAlloc(comptime T: type, size: usize) ![]T {
     var bump_alloc = BumpAllocator{};
     return bump_alloc.allocator().alloc(T, size);

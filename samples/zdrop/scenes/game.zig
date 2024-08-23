@@ -44,16 +44,16 @@ fn place_coin(row: i32) void {
                 @floatFromInt(x * map.tile_size + 1),
                 @floatFromInt((row - 2) * map.tile_size + 2),
             );
-            _ = game.engine.spawn(.coin, pos);
+            _ = game.Engine.spawn(.coin, pos);
             return;
         }
     }
 }
 
 fn init() void {
-    utils.randSeed(@intFromFloat(game.engine.time_real * 10000000.0));
+    utils.randSeed(@intFromFloat(game.Engine.time_real * 10000000.0));
 
-    game.engine.gravity = 240;
+    game.Engine.gravity = 240;
     g.score = 0;
     g.speed = 1;
     game_over = false;
@@ -69,15 +69,15 @@ fn init() void {
     }
 
     // The map is used as CollisionMap AND BackgroundMap
-    game.engine.setCollisionMap(&map);
-    game.engine.addBackgroundMap(&map);
+    game.Engine.setCollisionMap(&map);
+    game.Engine.addBackgroundMap(&map);
 
-    player = game.engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
+    player = game.Engine.spawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
 }
 
 fn update() void {
     if (input.pressed(p.A_START))
-        game.engine.setScene(&scene_game);
+        game.Engine.setScene(&scene_game);
 
     if (game_over)
         return;
@@ -92,9 +92,9 @@ fn update() void {
         // Move screen and entities one tile up
         engine.viewport.y -= 8;
         player.base.pos.y -= 8;
-        const coins = game.engine.entitiesByType(.coin);
+        const coins = game.Engine.entitiesByType(.coin);
         for (coins.items) |coin| {
-            const entity = game.engine.entityByRef(coin);
+            const entity = game.Engine.entityByRef(coin);
             entity.?.base.pos.y -= 8;
         }
 
@@ -108,7 +108,7 @@ fn update() void {
         }
     }
 
-    game.engine.sceneBaseUpdate();
+    game.Engine.sceneBaseUpdate();
 
     // Check for gameover
     const pp = player.base.pos.y - engine.viewport.y;
@@ -126,7 +126,7 @@ fn draw() void {
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 48.0), "Press Enter", .FONT_ALIGN_CENTER);
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 56.0), "to Restart", .FONT_ALIGN_CENTER);
     } else {
-        game.engine.baseDraw();
+        game.Engine.baseDraw();
     }
 
     var buf: [64]u8 = undefined;

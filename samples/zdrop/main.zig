@@ -16,16 +16,16 @@ fn init() void {
     g.font = zi.font("assets/font_04b03.qoi", "assets/font_04b03.json");
     g.font.color = zi.rgba(75, 84, 0, 255);
 
-    game.engine.setScene(&sgame.scene_game);
+    game.Engine.setScene(&sgame.scene_game);
 }
 
 pub fn main() void {
-    const vtabs = [_]zi.EntityVtab(game.Entity){
+    const vtabs = [_]game.EntityVtab{
         game.coin.vtab,
         game.player.vtab,
     };
 
-    game.engine.run(.{
+    game.Engine.run(.{
         .vtabs = &vtabs,
         .window_title = "Z Drop",
         .render_size = zi.vec2i(64, 96),

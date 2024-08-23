@@ -3,7 +3,6 @@ const zi = @import("zimpact");
 const game = @import("../game.zig");
 const g = @import("../global.zig");
 const ett = zi.entity;
-const EntityVtab = ett.EntityVtab;
 const Entity = game.Entity;
 const Image = zi.Image;
 const animDef = zi.animDef;
@@ -34,7 +33,7 @@ fn init(self: *Entity) void {
 
 fn update(self: *Entity) void {
     if ((self.base.pos.y - zi.engine.viewport.y) < -32) {
-        game.engine.entityKill(self);
+        game.Engine.entityKill(self);
     }
 }
 
@@ -42,10 +41,10 @@ fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
     snd.play(sound_collect);
-    game.engine.entityKill(self);
+    game.Engine.entityKill(self);
 }
 
-pub const vtab: EntityVtab(Entity) = .{
+pub const vtab: game.EntityVtab = .{
     .load = load,
     .init = init,
     .update = update,

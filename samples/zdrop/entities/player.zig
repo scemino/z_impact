@@ -48,11 +48,11 @@ fn update(self: *Entity) void {
     } else {
         self.base.accel.x = 0;
     }
-    game.engine.baseUpdate(self);
+    game.Engine.baseUpdate(self);
 }
 
 fn draw(self: *Entity, vp: Vec2) void {
-    game.engine.entityBaseDraw(self, vp);
+    game.Engine.entityBaseDraw(self, vp);
 
     // Draw arrows when player is off-screen
     if (self.base.pos.y < vp.y - 4) {
@@ -70,7 +70,7 @@ fn collide(self: *Entity, normal: Vec2, _: ?zi.Trace) void {
     }
 }
 
-pub const vtab: EntityVtab(Entity) = .{
+pub const vtab: game.EntityVtab = .{
     .load = load,
     .init = init,
     .update = update,

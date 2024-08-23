@@ -2,15 +2,17 @@ const zi = @import("zimpact");
 const EntityBase = zi.EntityBase;
 pub const coin = @import("entities/coin.zig");
 pub const player = @import("entities/player.zig");
-pub const engine = zi.Engine(Entity);
+pub const Engine = zi.Engine(UEntity);
+pub const Entity = Engine.Entity;
 
 pub const EntityKind = enum {
     coin,
     player,
 };
 
-pub const Entity = struct {
-    base: EntityBase,
-    kind: EntityKind,
-    entity: void,
+pub const EntityVtab = zi.Engine(UEntity).EntityVtab;
+
+pub const UEntity = union(EntityKind) {
+    coin: void,
+    player: void,
 };

@@ -18,6 +18,7 @@ pub const entity = @import("entity.zig");
 pub const EntityBase = entity.EntityBase;
 pub const EntityVtab = entity.EntityVtab;
 pub const EntityRef = entity.EntityRef;
+pub const EntityList = entity.EntityList;
 pub const fnt = @import("font.zig");
 pub const font = fnt.font;
 pub const Font = fnt.Font;

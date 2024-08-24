@@ -663,6 +663,75 @@ pub fn Engine(comptime T: type) type {
             return null;
         }
 
+        // Get a list of entities that are within the radius of this entity. Optionally
+        // filter by one entity type. Use ENTITY_TYPE_NONE to get all entities in
+        // proximity.
+        // If called while the game is running (as opposed to during scene init), the
+        // list is only valid for the duration of the current frame.
+        pub fn entitiesByProximity(kind: anytype, ent: *Entity, radius: f32) EntityList {
+            const pos = entityCenter(ent);
+            return entitiesByLocation(kind, pos, radius, ent);
+        }
+
+        /// Same as entities_by_proximity() but with a center position instead of an
+        /// entity.
+        /// If called while the game is running (as opposed to during scene init), the
+        /// list is only valid for the duration of the current frame.
+        pub fn entitiesByLocation(kind: anytype, pos: Vec2, radius: f32, exclude: *Entity) EntityList {
+            var ba = alloc.BumpAllocator{};
+            var list = std.ArrayList(EntityRef).init(ba.allocator());
+            defer list.deinit();
+
+            const start_pos = pos.x - radius;
+            const end_pos = start_pos + radius * 2;
+
+            const radius_squared = radius * radius;
+
+            // Binary search to the last entity that is below ENTITY_MAX_SIZE of the
+            // start point
+            var lower_bound: usize = 0;
+            var upper_bound: usize = entities_len - 1;
+            const search_pos: f32 = start_pos - ENTITY_MAX_SIZE;
+            while (lower_bound <= upper_bound) {
+                const current_index = (lower_bound + upper_bound) / 2;
+                const current_pos = entities[current_index].base.pos.x;
+
+                if (current_pos < search_pos) {
+                    lower_bound = current_index + 1;
+                } else if (current_pos > search_pos) {
+                    upper_bound = current_index - 1;
+                } else {
+                    break;
+                }
+            }
+
+            // Find entities in the sweep range
+            for (@max(upper_bound, 0)..entities_len) |i| {
+                const entity = entities[i];
+
+                // Have we reached the end of the search range?
+                if (entity.base.pos.x > end_pos) {
+                    break;
+                }
+
+                // Is this entity in the search range and has the right type?
+                if (entity.base.pos.x + entity.base.size.x >= start_pos and
+                    entity != exclude and
+                    (@as(u8, @intFromEnum(kind)) == 0 or entity.entity == kind) and
+                    entity.base.is_alive)
+                {
+                    // Is the bounding box in the radius?
+                    const xd = entity.base.pos.x + (if (entity.base.pos.x < pos.x) entity.base.size.x else 0) - pos.x;
+                    const yd = entity.base.pos.y + (if (entity.base.pos.y < pos.y) entity.base.size.y else 0) - pos.y;
+                    if ((xd * xd) + (yd * yd) <= radius_squared) {
+                        list.append(entityRef(entity)) catch @panic("failed to append entity");
+                    }
+                }
+            }
+
+            return EntityList{ .entities = ba.allocator().dupe(EntityRef, list.items) catch @panic("failed to append") };
+        }
+
         // Get a list of all entities of a certain type
         // If called while the game is running (as opposed to during scene init), the
         // list is only valid for the duration of the current frame.

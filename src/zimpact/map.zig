@@ -20,37 +20,37 @@ const MapAnimDef = struct {
 };
 
 pub const Map = struct {
-    // The size of the map in tiles
+    /// The size of the map in tiles
     size: Vec2i,
 
-    // The size of a tile of this map
+    /// The size of a tile of this map
     tile_size: u16,
 
-    // The name of the map. For collision maps this is usually "collision".
-    // Background maps may have any name.
+    /// The name of the map. For collision maps this is usually "collision".
+    /// Background maps may have any name.
     name: [16]u8 = [1]u8{0} ** 16,
 
-    // The "distance" of the map when drawing at a certain offset. Maps that
-    // have a higher distance move slower. Default 1.
+    /// The "distance" of the map when drawing at a certain offset. Maps that
+    /// have a higher distance move slower. Default 1.
     distance: f32 = 1.0,
 
-    // Whether the map repeats indefinitely when drawing
+    /// Whether the map repeats indefinitely when drawing
     repeat: bool = false,
 
-    // Whether to draw this map in fround of all entities
+    /// Whether to draw this map in fround of all entities
     foreground: bool = false,
 
-    // The tileset image to use when drawing. Might be NULL for collision maps
+    /// The tileset image to use when drawing. Might be NULL for collision maps
     tileset: ?*img.Image = null,
 
-    // Animations for certain tiles when drawing. Use map_set_anim() to add
-    // animations.
+    /// Animations for certain tiles when drawing. Use map_set_anim() to add
+    /// animations.
     anims: ?[]?*MapAnimDef = null,
 
-    // The tile indices with a length of size.x * size.y
+    /// The tile indices with a length of size.x * size.y
     data: []u16,
 
-    // The highest tile index in that map; used internally.
+    /// The highest tile index in that map; used internally.
     max_tile: u16 = 0,
 
     /// Load a map from a json. The json must have the following layout.
@@ -135,6 +135,44 @@ pub const Map = struct {
         };
     }
 
+    /// Set the frame time and animation sequence for a particular tile. You can
+    /// only do this in your scene_init()
+    pub fn setAnim(self: *Map, tile: u16, frame_time: f32, sequence: []const u16) void {
+        // assert(!engine.isRunning()); // Cannot set map animation during gameplay
+        assert(sequence.len > 0); // Map animation has empty sequence
+
+        if (tile > self.max_tile) {
+            return;
+        }
+        var ba = alloc.BumpAllocator{};
+        if (self.anims == null) {
+            const anims = ba.allocator().alloc(?*MapAnimDef, self.max_tile) catch @panic("error when setting map animation");
+            @memset(anims, null);
+            self.anims = anims;
+        }
+
+        var def_addr: []MapAnimDef = ba.allocator().alloc(MapAnimDef, 1) catch @panic("error when setting map animation");
+        def_addr[0] = MapAnimDef{
+            .inv_frame_time = 1.0 / frame_time,
+            .sequence = ba.allocator().dupe(u16, sequence) catch @panic("error when setting map animation"),
+        };
+        self.anims.?[tile] = &def_addr[0];
+    }
+
+    /// Return the tile index at the tile position. Will return 0 when out of bounds
+    pub fn tileAt(self: Map, tile_pos: Vec2i) i32 {
+        if (tile_pos.x < 0 or tile_pos.x >= self.size.x or tile_pos.y < 0 or tile_pos.y >= self.size.y) {
+            return 0;
+        }
+        return self.data[@intCast(tile_pos.y * self.size.x + tile_pos.x)];
+    }
+
+    /// Return the tile index at the pixel position. Will return 0 when out of bounds
+    pub fn tileAtPx(self: Map, px_pos: Vec2) i32 {
+        const tile_pos = fromVec2(px_pos).divi(self.tile_size);
+        return self.tileAt(tile_pos);
+    }
+
     /// Draw the map at the given offset. This will take the distance into account.
     pub fn draw(self: Map, off: Vec2) void {
         // assert(self.tileset); // "Cannot draw map without tileset");
@@ -191,44 +229,6 @@ pub const Map = struct {
                 y += 1;
             }
         }
-    }
-
-    /// Set the frame time and animation sequence for a particular tile. You can
-    /// only do this in your scene_init()
-    pub fn setAnim(self: *Map, tile: u16, frame_time: f32, sequence: []const u16) void {
-        // assert(!engine.isRunning()); // Cannot set map animation during gameplay
-        assert(sequence.len > 0); // Map animation has empty sequence
-
-        if (tile > self.max_tile) {
-            return;
-        }
-        var ba = alloc.BumpAllocator{};
-        if (self.anims == null) {
-            const anims = ba.allocator().alloc(?*MapAnimDef, self.max_tile) catch @panic("error when setting map animation");
-            @memset(anims, null);
-            self.anims = anims;
-        }
-
-        var def_addr: []MapAnimDef = ba.allocator().alloc(MapAnimDef, 1) catch @panic("error when setting map animation");
-        def_addr[0] = MapAnimDef{
-            .inv_frame_time = 1.0 / frame_time,
-            .sequence = ba.allocator().dupe(u16, sequence) catch @panic("error when setting map animation"),
-        };
-        self.anims.?[tile] = &def_addr[0];
-    }
-
-    /// Return the tile index at the tile position. Will return 0 when out of bounds
-    pub fn tileAt(self: Map, tile_pos: Vec2i) i32 {
-        if (tile_pos.x < 0 or tile_pos.x >= self.size.x or tile_pos.y < 0 or tile_pos.y >= self.size.y) {
-            return 0;
-        }
-        return self.data[@intCast(tile_pos.y * self.size.x + tile_pos.x)];
-    }
-
-    /// Return the tile index at the pixel position. Will return 0 when out of bounds
-    pub fn tileAtPx(self: Map, px_pos: Vec2) i32 {
-        const tile_pos = fromVec2(px_pos).divi(self.tile_size);
-        return self.tileAt(tile_pos);
     }
 
     fn drawTile(self: Map, t: u16, pos: Vec2) void {

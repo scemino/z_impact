@@ -4,9 +4,13 @@ const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const assert = std.debug.assert;
 
+/// The maximum number of discrete actions
 const INPUT_ACTION_MAX = 32;
+
+/// The deadzone for input_capture()
 const INPUT_DEADZONE_CAPTURE = 0.5;
 
+/// Key and buttons names for input_bind()
 pub const Button = enum(u8) {
     INPUT_INVALID = 0,
     INPUT_KEY_A = 4,
@@ -147,6 +151,10 @@ pub const Button = enum(u8) {
 const INPUT_BUTTON_MAX: usize = 139;
 const INPUT_ACTION_NONE: u8 = 255;
 const INPUT_BUTTON_NONE: u8 = 0;
+
+/// The deadzone in the normalized 0..1 range in which button presses are
+/// ignored. This only takes effect for "analog" input, such as sticks on a game
+/// controller.
 const INPUT_DEADZONE: f32 = 0.1;
 
 var expected_button: [INPUT_BUTTON_MAX]u8 = [1]u8{0} ** INPUT_BUTTON_MAX;
@@ -250,9 +258,9 @@ pub fn unbindAll() void {
     }
 }
 
-// Set up a capture callback that will receive ALL key and button presses. For
-// non-text input, ascii_char will be 0. Call input_capture(NULL, NULL) to
-// uninstall a callback.
+/// Set up a capture callback that will receive ALL key and button presses. For
+/// non-text input, ascii_char will be 0. Call input_capture(NULL, NULL) to
+/// uninstall a callback.
 const CaptureCallback = *fn (user: ?*anyopaque, button: Button, ascii_char: u32) void;
 var capture_callback: ?CaptureCallback = null;
 var capture_user: ?*anyopaque = null;

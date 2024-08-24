@@ -1,9 +1,9 @@
 const std = @import("std");
 
-// Scales v from the input range to the output range. This is useful for all
-// kinds of transitions. E.g. to move an image in from the right side of the
-// screen to the center over 2 second, starting at the 3 second:
-// x = scale(time, 3, 5, screen_size.x, screen_size.x/2)
+/// Scales v from the input range to the output range. This is useful for all
+/// kinds of transitions. E.g. to move an image in from the right side of the
+/// screen to the center over 2 second, starting at the 3 second:
+/// x = scale(time, 3, 5, screen_size.x, screen_size.x/2)
 pub fn scale(val: anytype, in_min: anytype, in_max: anytype, out_min: anytype, out_max: anytype) @TypeOf(val, in_min, in_max) {
     const _in_min = in_min;
     const _out_min = out_min;
@@ -29,7 +29,7 @@ pub fn randFloat(min: f32, max: f32) f32 {
     return min + rand.float(f32) * (max - min);
 }
 
-// A random int between min and max (inclusive)
+/// A random int between min and max (inclusive)
 pub fn randInt(min: i32, max: i32) i32 {
     return rand.intRangeAtMost(i32, min, max);
 }

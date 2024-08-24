@@ -116,6 +116,8 @@ pub fn imagesReset(mark: ImageMark) void {
     images_len = mark.index;
 }
 
+/// Load an image from a QOI file. Calling this function multiple times with the
+/// same path will return the same, cached image instance,
 pub fn image(path: []const u8) *Image {
     return Image.init(path) catch @panic("failed to init image");
 }

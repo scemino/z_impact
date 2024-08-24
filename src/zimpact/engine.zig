@@ -25,48 +25,63 @@ const Trace = @import("trace.zig").Trace;
 const snd = @import("sound.zig");
 const ObjectMap = std.json.ObjectMap;
 
-// The maximum difference in seconds from one frame to the next. If the
-// difference  is larger than this, the game will slow down instead of having
-// imprecise large time steps.
+/// The maximum difference in seconds from one frame to the next. If the
+/// difference  is larger than this, the game will slow down instead of having
+/// imprecise large time steps.
 const ENGINE_MAX_TICK = 0.1;
+
+/// The maximum amount of entities that are in your game at once. Beyond that,
+/// entity_spawn() will return NULL.
 pub const ENTITIES_MAX = 1024;
+
+/// The maximum number of background maps
 const ENGINE_MAX_BACKGROUND_MAPS = 4;
+
+/// The minimum velocity of an entities (that has restitution > 0) for it to
+/// bounce. If this would be 0.0, entities would bounce indefinitely with ever
+/// smaller velocities.
 const ENTITY_MIN_BOUNCE_VELOCITY = 10;
 
-// The engine is the main wrapper around your. For every frame, it will update
-// your scene, update all entities and draw the whole frame.
-
-// The engine takes care of timekeeping, a number background maps, a collision
-// map some more global state. There's only one engine_t instance in high_impact
-// and it's globally available at `engine`
+/// The maximum size any of your entities is expected to have. This only affects
+/// the accuracy of entities_by_proximity() and entities_by_location().
+/// FIXME: this is bad; we should have to specify this.
+const ENTITY_MAX_SIZE = 64.0;
 
 /// The game time in seconds since scene start
 pub var time: f64 = 0.0;
 
-// A global multiplier for how fast game time should advance. Default: 1.0
+/// A global multiplier for how fast game time should advance. Default: 1.0
 var time_scale: f64 = 1.0;
 
-// The time difference in seconds from the last frame to the current.
-// Typically 0.01666 (assuming 60hz)
+/// The time difference in seconds from the last frame to the current.
+/// Typically 0.01666 (assuming 60hz)
 pub var tick: f64 = 0;
 
-// The frame number in this current scene. Increases by 1 for every frame.
+/// The frame number in this current scene. Increases by 1 for every frame.
 var frame: u64 = 0;
 
 /// The map to use for entity vs. world collisions. Reset for each scene.
 /// Use engine_set_collision_map() to set it.
 pub var collision_map: ?*Map = null;
 
-// The maps to draw. Reset for each scene. Use engine_add_background_map()
-// to add.
+/// The maps to draw. Reset for each scene. Use engine_add_background_map()
+/// to add.
 pub var background_maps: [ENGINE_MAX_BACKGROUND_MAPS]?*Map = [1]?*Map{null} ** ENGINE_MAX_BACKGROUND_MAPS;
 var background_maps_len: u32 = 0;
 
-// The top left corner of the viewport. Internally just an offset when
-// drawing background_maps and entities.
+/// The top left corner of the viewport. Internally just an offset when
+/// drawing background_maps and entities.
 pub var viewport: Vec2 = .{ .x = 0, .y = 0 };
 
-// Various infos about the last frame
+/// A global multiplier that affects the gravity of all entities. This only
+/// makes sense for side view games. For a top-down game you'd want to have
+/// it at 0.0. Default: 1.0
+pub var gravity: f32 = 1.0;
+
+/// The real time in seconds since program start
+pub var time_real: f64 = 0.0;
+
+/// Various infos about the last frame
 const Perf = struct {
     entities: usize,
     checks: usize,
@@ -75,8 +90,8 @@ const Perf = struct {
     draw: f32,
     total: f32,
 };
-pub var perf: Perf = undefined;
 
+pub var perf: Perf = undefined;
 var scene: ?*const Scene = null;
 var scene_next: ?*const Scene = null;
 var init_textures_mark: texture.TextureMark = .{};
@@ -85,6 +100,11 @@ var init_bump_mark: alloc.BumpMark = .{};
 var init_sounds_mark: snd.SoundMark = .{};
 pub var is_running = false;
 
+/// The engine is the main wrapper around your. For every frame, it will update
+/// your scene, update all entities and draw the whole frame.
+/// The engine takes care of timekeeping, a number background maps, a collision
+/// map some more global state. There's only one engine_t instance in high_impact
+/// and it's globally available at `engine`
 pub fn Engine(comptime T: type) type {
     return struct {
         const Self = @This();
@@ -94,22 +114,12 @@ pub fn Engine(comptime T: type) type {
             entity: T,
         };
 
+        const EntitySettings = struct {
+            entity: *Entity,
+            settings: ObjectMap,
+        };
+
         pub const EntityVtab = ett.EntityVtab(Self, Entity);
-
-        // A global multiplier that affects the gravity of all entities. This only
-        // makes sense for side view games. For a top-down game you'd want to have
-        // it at 0.0. Default: 1.0
-        pub var gravity: f32 = 1.0;
-
-        /// The real time in seconds since program start
-        pub var time_real: f64 = 0.0;
-        var entity_vtab: []const EntityVtab = undefined;
-        var entities: [ENTITIES_MAX]*Entity = undefined;
-        var entities_storage: [ENTITIES_MAX]Entity = undefined;
-        var entities_len: usize = 0;
-        var entity_unique_id: u16 = 0;
-        var render_size: Vec2i = undefined;
-        var main_init: ?*const fn () void = null;
 
         const Desc = struct {
             vtabs: []const EntityVtab,
@@ -118,6 +128,14 @@ pub fn Engine(comptime T: type) type {
             window_title: ?[:0]const u8 = null,
             window_size: Vec2i = types.vec2i(1280, 720),
         };
+
+        var entity_vtab: []const EntityVtab = undefined;
+        var entities: [ENTITIES_MAX]*Entity = undefined;
+        var entities_storage: [ENTITIES_MAX]Entity = undefined;
+        var entities_len: usize = 0;
+        var entity_unique_id: u16 = 0;
+        var render_size: Vec2i = undefined;
+        var main_init: ?*const fn () void = null;
 
         pub fn run(desc: Desc) void {
             entity_vtab = desc.vtabs;
@@ -138,7 +156,7 @@ pub fn Engine(comptime T: type) type {
             snd.init(platform.samplerate());
             platform.setAudioMixCb(snd.mixStereo);
             // input_init();
-            initEntities(entity_vtab);
+            entitiesInit(entity_vtab);
             if (main_init) |i| i();
 
             init_bump_mark = alloc.bumpMark();
@@ -205,7 +223,7 @@ pub fn Engine(comptime T: type) type {
                     if (scn.draw) |cb|
                         cb();
                 } else {
-                    baseDraw();
+                    sceneBaseDraw();
                 }
 
                 render.frameEnd();
@@ -229,16 +247,33 @@ pub fn Engine(comptime T: type) type {
             render.cleanup();
         }
 
-        // Makes the scene_the current scene. This calls scene.cleanup() on the old
-        // scene and scene.init() on the new one. The actual swap of scenes happens
-        // at the beginning of the next frame, so it's ok to call engine_set_scene()
-        // from the middle of a frame.
-        // Your main_init() function must call engine_set_scene() to set first scene.
-        pub fn setScene(s: *const Scene) void {
-            scene_next = s;
+        /// Whether the game is running or we are in a loading phase (i.e. when swapping
+        /// scenes)
+        pub fn isRunning() bool {
+            return is_running;
         }
 
-        pub fn baseDraw() void {
+        /// Updates the entity's position and velocity according to its physics. This
+        /// also checks for collision against the game world. If you use update() in your
+        /// vtab, you may still want to call this function.
+        pub fn entityBaseUpdate(self: *Entity) void {
+            if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) != ett.ENTITY_PHYSICS_MOVE)
+                return;
+
+            // Integrate velocity
+            const v = self.base.vel;
+
+            self.base.vel.y = @floatCast(self.base.vel.y + gravity * self.base.gravity * tick);
+            const friction = vec2(@min(@as(f32, @floatCast(self.base.friction.x * tick)), 1), @min(@as(f32, @floatCast(self.base.friction.y * tick)), 1));
+            self.base.vel = Vec2.add(self.base.vel, Vec2.sub(Vec2.mulf(self.base.accel, @as(f32, @floatCast(tick))), Vec2.mul(self.base.vel, friction)));
+
+            const vstep = Vec2.mulf(Vec2.add(v, self.base.vel), @as(f32, @floatCast(tick * 0.5)));
+            self.base.on_ground = false;
+            entityMove(self, vstep);
+        }
+
+        /// Draw all background maps and entities
+        pub fn sceneBaseDraw() void {
             const px_viewport = render.snapPx(viewport);
 
             // Background maps
@@ -262,12 +297,16 @@ pub fn Engine(comptime T: type) type {
             }
         }
 
+        /// Draws the entity.anim. If you use draw() in you vtab, you may still want to
+        /// call this function.
         pub fn entityBaseDraw(self: *Entity, vp: Vec2) void {
             if (self.base.anim.def != null) {
                 self.base.anim.draw(Vec2.sub(Vec2.sub(self.base.pos, vp), self.base.offset));
             }
         }
 
+        /// Deduct damage from health; calls entityKill() when health <= 0. If you use
+        /// damage() in your vtab, you may still want to call this function.
         pub fn entityBaseDamage(self: *Entity, _: *Entity, damage: f32) void {
             self.base.health -= damage;
 
@@ -276,106 +315,14 @@ pub fn Engine(comptime T: type) type {
             }
         }
 
-        pub fn baseUpdate(self: *Entity) void {
-            if ((self.base.physics & ett.ENTITY_PHYSICS_MOVE) != ett.ENTITY_PHYSICS_MOVE)
-                return;
-
-            // Integrate velocity
-            const v = self.base.vel;
-
-            self.base.vel.y = @floatCast(self.base.vel.y + gravity * self.base.gravity * tick);
-            const friction = vec2(@min(@as(f32, @floatCast(self.base.friction.x * tick)), 1), @min(@as(f32, @floatCast(self.base.friction.y * tick)), 1));
-            self.base.vel = Vec2.add(self.base.vel, Vec2.sub(Vec2.mulf(self.base.accel, @as(f32, @floatCast(tick))), Vec2.mul(self.base.vel, friction)));
-
-            const vstep = Vec2.mulf(Vec2.add(v, self.base.vel), @as(f32, @floatCast(tick * 0.5)));
-            self.base.on_ground = false;
-            entityMove(self, vstep);
-        }
-
+        /// Update all entities
         pub fn sceneBaseUpdate() void {
-            updateEntities();
-        }
-
-        pub fn setCollisionMap(map: *Map) void {
-            collision_map = map;
+            entitiesUpdate();
         }
 
         fn renderInit(avaiable_size: Vec2i) void {
             render.init(render_size);
             render.resize(avaiable_size);
-        }
-
-        fn initEntities(vtabs: []const EntityVtab) void {
-            entity_vtab = vtabs;
-            for (vtabs) |v| {
-                v.load();
-            }
-
-            entitiesReset();
-        }
-
-        fn updateEntities() void {
-            // Update all entities
-            var i: usize = 0;
-            while (i < entities_len) {
-                const ent = entities[i];
-                updateEntity(ent);
-
-                if (!ent.base.is_alive) {
-                    // If this entity is dead overwrite it with the last one and
-                    // decrease count.
-                    entities_len -= 1;
-                    if (i < entities_len) {
-                        const last = entities[entities_len];
-                        entities[entities_len] = entities[i];
-                        entities[i] = last;
-                        i -%= 1;
-                    }
-                }
-                i +%= 1;
-            }
-
-            // Sort by x or y position - insertion sort
-            std.sort.insertion(*Entity, entities[0..entities_len], {}, cmpEntityPos);
-
-            const len: usize = entities_len;
-
-            // Sweep touches
-            perf.checks = 0;
-            i = 0;
-            for (entities[0..len]) |e1| {
-                if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
-                    e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
-                {
-                    const max_pos = e1.base.pos.x + e1.base.size.x;
-                    var j: usize = i + 1;
-                    while (j < len and entities[j].base.pos.x < max_pos) {
-                        const e2 = entities[j];
-                        perf.checks += 1;
-
-                        if (entityIsTouching(e1, e2)) {
-                            if (contains(e1.base.check_against, e2.base.group)) {
-                                touchEntity(e1, e2);
-                            }
-                            if (contains(e1.base.group, e2.base.check_against)) {
-                                touchEntity(e2, e1);
-                            }
-
-                            if (e1.base.physics >= ett.ENTITY_COLLIDES_LITE and
-                                e2.base.physics >= ett.ENTITY_COLLIDES_LITE and
-                                (e1.base.physics + e2.base.physics) >= (ett.ENTITY_COLLIDES_ACTIVE | ett.ENTITY_COLLIDES_LITE) and
-                                e1.base.mass + e2.base.mass > 0)
-                            {
-                                entityResolveCollision(e1, e2);
-                            }
-                        }
-                        j += 1;
-                    }
-                }
-                i += 1;
-            }
-
-            perf.entities = entities_len;
         }
 
         fn contains(g1: u8, g2: u8) bool {
@@ -387,24 +334,21 @@ pub fn Engine(comptime T: type) type {
             return a.base.pos.x <= b.base.pos.x;
         }
 
-        fn initEntity(entity: *Entity) void {
+        // Functions to call the correct function on each entity according to the vtab.
+        fn entityInit(entity: *Entity) void {
             vtab(entity).init(entity);
         }
 
-        fn updateEntity(entity: *Entity) void {
+        fn entitySettings(e: *Entity, value: ObjectMap) void {
+            vtab(e).settings(e, value);
+        }
+
+        fn entityUpdate(entity: *Entity) void {
             vtab(entity).update(entity);
         }
 
-        pub fn drawEntity(entity: *Entity, vp: Vec2) void {
+        pub fn entityDraw(entity: *Entity, vp: Vec2) void {
             vtab(entity).draw(entity, vp);
-        }
-
-        pub fn touchEntity(e1: *Entity, e2: *Entity) void {
-            vtab(e1).touch(e1, e2);
-        }
-
-        pub fn entityMessage(e1: *Entity, message: anytype, data: ?*anyopaque) void {
-            vtab(e1).message(e1, @ptrFromInt(@intFromEnum(message)), data);
         }
 
         pub fn entityKill(entity: *Entity) void {
@@ -412,32 +356,39 @@ pub fn Engine(comptime T: type) type {
             vtab(entity).kill(entity);
         }
 
+        pub fn entityTouch(e1: *Entity, e2: *Entity) void {
+            vtab(e1).touch(e1, e2);
+        }
+
+        pub fn entityCollide(e: *Entity, normal: Vec2, t: ?Trace) void {
+            vtab(e).collide(e, normal, t);
+        }
+
         pub fn entityDamage(entity: *Entity, other: *Entity, value: f32) void {
             vtab(entity).damage(entity, other, value);
         }
 
-        pub fn entitySettings(e: *Entity, value: ObjectMap) void {
-            vtab(e).settings(e, value);
+        pub fn entityTrigger(e: *Entity, other: *Entity) void {
+            vtab(e).trigger(e, other);
         }
 
+        pub fn entityMessage(e1: *Entity, message: anytype, data: ?*anyopaque) void {
+            vtab(e1).message(e1, @ptrFromInt(@intFromEnum(message)), data);
+        }
+
+        /// The center position of an entity, according to its pos and size
         pub fn entityCenter(ent: *Entity) Vec2 {
             return ent.base.pos.add(ent.base.size.mulf(0.5));
         }
 
+        /// The distance (in pixels) between two entities
         pub fn entityDist(a: *Entity, b: *Entity) f32 {
             return entityCenter(a).dist(entityCenter(b));
         }
 
+        /// The angle in radians of a line between two entities
         pub fn entityAngle(a: *Entity, b: *Entity) f32 {
             return entityCenter(a).angle(entityCenter(b));
-        }
-
-        pub fn collideEntity(e: *Entity, normal: Vec2, t: ?Trace) void {
-            vtab(e).collide(e, normal, t);
-        }
-
-        pub fn entityTrigger(e: *Entity, other: *Entity) void {
-            vtab(e).trigger(e, other);
         }
 
         fn entityResolveCollision(a: *Entity, b: *Entity) void {
@@ -460,22 +411,22 @@ pub fn Engine(comptime T: type) type {
             if (overlap_y > overlap_x) {
                 if (a.base.pos.x < b.base.pos.x) {
                     entitiesSeparateOnXAxis(a, b, a_move, b_move, overlap_x);
-                    collideEntity(a, vec2(-1, 0), null);
-                    collideEntity(b, vec2(1, 0), null);
+                    entityCollide(a, vec2(-1, 0), null);
+                    entityCollide(b, vec2(1, 0), null);
                 } else {
                     entitiesSeparateOnXAxis(b, a, b_move, a_move, overlap_x);
-                    collideEntity(a, vec2(1, 0), null);
-                    collideEntity(b, vec2(-1, 0), null);
+                    entityCollide(a, vec2(1, 0), null);
+                    entityCollide(b, vec2(-1, 0), null);
                 }
             } else {
                 if (a.base.pos.y < b.base.pos.y) {
                     entitiesSeparateOnYAxis(a, b, a_move, b_move, overlap_y);
-                    collideEntity(a, vec2(0, -1), null);
-                    collideEntity(b, vec2(0, 1), null);
+                    entityCollide(a, vec2(0, -1), null);
+                    entityCollide(b, vec2(0, 1), null);
                 } else {
                     entitiesSeparateOnYAxis(b, a, b_move, a_move, overlap_y);
-                    collideEntity(a, vec2(0, 1), null);
-                    collideEntity(b, vec2(0, -1), null);
+                    entityCollide(a, vec2(0, 1), null);
+                    entityCollide(b, vec2(0, -1), null);
                 }
             }
         }
@@ -569,7 +520,7 @@ pub fn Engine(comptime T: type) type {
                 return;
             }
 
-            collideEntity(self, t.normal, t);
+            entityCollide(self, t.normal, t);
 
             // If this entity is bouncy, calculate the velocity against the
             // slope's normal (the dot product) and see if we want to bounce
@@ -603,6 +554,7 @@ pub fn Engine(comptime T: type) type {
             self.base.vel = rotated_normal.mulf(vel_along_normal);
         }
 
+        // Return a reference for to given entity
         pub fn entityRef(self: ?*Entity) EntityRef {
             if (self) |me| {
                 return .{
@@ -645,11 +597,13 @@ pub fn Engine(comptime T: type) type {
                 },
             };
 
-            initEntity(ent);
+            entityInit(ent);
             return ent;
         }
 
-        pub fn spawn(kind: anytype, pos: Vec2) ?*Entity {
+        // Spawn entity of the given type at the given position, returns null if entity
+        // storage is full.
+        pub fn entitySpawn(kind: anytype, pos: Vec2) ?*Entity {
             if (entities_len >= ENTITIES_MAX) return null;
             const ent = entities[entities_len];
             entities_len += 1;
@@ -679,7 +633,7 @@ pub fn Engine(comptime T: type) type {
                 .entity = @unionInit(T, @tagName(kind), undefined),
             };
 
-            initEntity(ent);
+            entityInit(ent);
             return ent;
         }
 
@@ -688,29 +642,16 @@ pub fn Engine(comptime T: type) type {
             return entity_vtab[@intFromEnum(tag)];
         }
 
-        fn entityIsTouching(self: *Entity, other: *Entity) bool {
+        // Whether two entities are overlapping
+        pub fn entityIsTouching(self: *Entity, other: *Entity) bool {
             return !(self.base.pos.x >= other.base.pos.x + other.base.size.x or
                 self.base.pos.x + self.base.size.x <= other.base.pos.x or
                 self.base.pos.y >= other.base.pos.y + other.base.size.y or
                 self.base.pos.y + self.base.size.y <= other.base.pos.y);
         }
 
-        pub fn entitiesByType(kind: anytype) std.ArrayList(EntityRef) {
-            var ba = alloc.BumpAllocator{};
-            var list = std.ArrayList(EntityRef).init(ba.allocator());
-            // FIXME:PERF: linear search
-            var i: usize = 0;
-            while (i < entities_len) {
-                const entity = entities[i];
-                if (std.meta.activeTag(entity.entity) == kind and entity.base.is_alive) {
-                    list.append(entityRef(entity)) catch @panic("failed to append");
-                }
-                i += 1;
-            }
-
-            return list;
-        }
-
+        // Get the name of an entity (usually the name is specified through "settings"
+        // in a level json). May be null.
         pub fn entityByName(name: []const u8) ?*Entity {
             // FIXME:PERF: linear search
             for (entities[0..entities_len]) |entity| {
@@ -722,6 +663,33 @@ pub fn Engine(comptime T: type) type {
             return null;
         }
 
+        // Get a list of all entities of a certain type
+        // If called while the game is running (as opposed to during scene init), the
+        // list is only valid for the duration of the current frame.
+        // Get a list of all entities of a certain type
+        // If called while the game is running (as opposed to during scene init), the
+        // list is only valid for the duration of the current frame.
+        pub fn entitiesByType(kind: anytype) EntityList {
+            var ba = alloc.BumpAllocator{};
+            var list = std.ArrayList(EntityRef).init(ba.allocator());
+            defer list.deinit();
+
+            // FIXME:PERF: linear search
+            var i: usize = 0;
+            while (i < entities_len) {
+                const entity = entities[i];
+                if (std.meta.activeTag(entity.entity) == kind and entity.base.is_alive) {
+                    list.append(entityRef(entity)) catch @panic("failed to append");
+                }
+                i += 1;
+            }
+
+            return EntityList{ .entities = ba.allocator().dupe(EntityRef, list.items) catch @panic("failed to append") };
+        }
+
+        // Get a list of entities by name, with json_t array or object of names.
+        // If called while the game is running (as opposed to during scene init), the
+        // list is only valid for the duration of the current frame.
         pub fn entitiesFromJsonNames(targets: std.json.ObjectMap) EntityList {
             var ba = alloc.BumpAllocator{};
             var list = std.ArrayList(EntityRef).init(ba.allocator());
@@ -737,6 +705,8 @@ pub fn Engine(comptime T: type) type {
             return EntityList{ .entities = ba.allocator().dupe(EntityRef, list.items) catch @panic("failed to append") };
         }
 
+        // Get an entity by its reference. This will be NULL if the referred entity is
+        // not valid anymore.
         pub fn entityByRef(ref: EntityRef) ?*Entity {
             const ent = &entities_storage[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
@@ -746,32 +716,22 @@ pub fn Engine(comptime T: type) type {
             return null;
         }
 
-        fn entitiesDraw(vp: Vec2) void {
-            // Sort entities by draw_order
-            // FIXME: this copies the entity array - which is sorted by pos.x/y and
-            // sorts it again by draw_order. It's using insertion sort, which is slow
-            // for data that is not already mostly sorted.
-            var ba = alloc.BumpAllocator{};
-            const draw_ents = ba.allocator().alloc(*Entity, entities_len) catch @panic("failed to alloc");
-            @memcpy(draw_ents[0..], entities[0..entities_len]);
-
-            std.sort.insertion(*Entity, draw_ents[0..entities_len], {}, cmpEntity);
-
-            for (0..entities_len) |i| {
-                const ent = draw_ents[i];
-                drawEntity(ent, vp);
-            }
-        }
-
         fn cmpEntity(context: void, lhs: *Entity, rhs: *Entity) bool {
             _ = context;
             return lhs.base.draw_order <= rhs.base.draw_order;
         }
 
-        const EntitySettings = struct {
-            entity: *Entity,
-            settings: ObjectMap,
-        };
+        // Add a background map; typically done through engine_load_level()
+        pub fn addBackgroundMap(map: *Map) void {
+            assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
+            background_maps[background_maps_len] = map;
+            background_maps_len += 1;
+        }
+
+        // Set the collision map; typically done through engine_load_level()
+        pub fn setCollisionMap(map: *Map) void {
+            collision_map = map;
+        }
 
         /// Load a level (background maps, collision map and entities) from a json path.
         /// This should only be called from within your scenes init() function.
@@ -841,10 +801,29 @@ pub fn Engine(comptime T: type) type {
             // temp_free(json);
         }
 
-        pub fn addBackgroundMap(map: *Map) void {
-            assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
-            background_maps[background_maps_len] = map;
-            background_maps_len += 1;
+        /// Makes the scene_the current scene. This calls scene.cleanup() on the old
+        /// scene and scene.init() on the new one. The actual swap of scenes happens
+        /// at the beginning of the next frame, so it's ok to call engine_set_scene()
+        /// from the middle of a frame.
+        /// Your main_init() function must call engine_set_scene() to set first scene.
+        pub fn setScene(s: *const Scene) void {
+            scene_next = s;
+        }
+
+        // These functions are called by the engine during scene init/update/cleanup
+        fn entitiesInit(vtabs: []const EntityVtab) void {
+            entity_vtab = vtabs;
+
+            // Call load function on all entity types
+            for (vtabs) |v| {
+                v.load();
+            }
+
+            entitiesReset();
+        }
+
+        fn entitiesCleanup() void {
+            entitiesReset();
         }
 
         fn entitiesReset() void {
@@ -854,8 +833,85 @@ pub fn Engine(comptime T: type) type {
             entities_len = 0;
         }
 
-        fn entitiesCleanup() void {
-            entitiesReset();
+        fn entitiesUpdate() void {
+            // Update all entities
+            var i: usize = 0;
+            while (i < entities_len) {
+                const ent = entities[i];
+                entityUpdate(ent);
+
+                if (!ent.base.is_alive) {
+                    // If this entity is dead overwrite it with the last one and
+                    // decrease count.
+                    entities_len -= 1;
+                    if (i < entities_len) {
+                        const last = entities[entities_len];
+                        entities[entities_len] = entities[i];
+                        entities[i] = last;
+                        i -%= 1;
+                    }
+                }
+                i +%= 1;
+            }
+
+            // Sort by x or y position - insertion sort
+            std.sort.insertion(*Entity, entities[0..entities_len], {}, cmpEntityPos);
+
+            const len: usize = entities_len;
+
+            // Sweep touches
+            perf.checks = 0;
+            i = 0;
+            for (entities[0..len]) |e1| {
+                if (e1.base.check_against != ett.ENTITY_GROUP_NONE or
+                    e1.base.group != ett.ENTITY_GROUP_NONE or (e1.base.physics > ett.ENTITY_COLLIDES_LITE))
+                {
+                    const max_pos = e1.base.pos.x + e1.base.size.x;
+                    var j: usize = i + 1;
+                    while (j < len and entities[j].base.pos.x < max_pos) {
+                        const e2 = entities[j];
+                        perf.checks += 1;
+
+                        if (entityIsTouching(e1, e2)) {
+                            if (contains(e1.base.check_against, e2.base.group)) {
+                                entityTouch(e1, e2);
+                            }
+                            if (contains(e1.base.group, e2.base.check_against)) {
+                                entityTouch(e2, e1);
+                            }
+
+                            if (e1.base.physics >= ett.ENTITY_COLLIDES_LITE and
+                                e2.base.physics >= ett.ENTITY_COLLIDES_LITE and
+                                (e1.base.physics + e2.base.physics) >= (ett.ENTITY_COLLIDES_ACTIVE | ett.ENTITY_COLLIDES_LITE) and
+                                e1.base.mass + e2.base.mass > 0)
+                            {
+                                entityResolveCollision(e1, e2);
+                            }
+                        }
+                        j += 1;
+                    }
+                }
+                i += 1;
+            }
+
+            perf.entities = entities_len;
+        }
+
+        fn entitiesDraw(vp: Vec2) void {
+            // Sort entities by draw_order
+            // FIXME: this copies the entity array - which is sorted by pos.x/y and
+            // sorts it again by draw_order. It's using insertion sort, which is slow
+            // for data that is not already mostly sorted.
+            var ba = alloc.BumpAllocator{};
+            const draw_ents = ba.allocator().alloc(*Entity, entities_len) catch @panic("failed to alloc");
+            @memcpy(draw_ents[0..], entities[0..entities_len]);
+
+            std.sort.insertion(*Entity, draw_ents[0..entities_len], {}, cmpEntity);
+
+            for (0..entities_len) |i| {
+                const ent = draw_ents[i];
+                entityDraw(ent, vp);
+            }
         }
     };
 }

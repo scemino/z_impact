@@ -29,6 +29,7 @@ pub const Anim = struct {
     rotation: f32 = 0.0,
     color: Rgba,
 
+    // Draw the animation at the given pos
     pub fn draw(self: *Anim, pos: Vec2) void {
         var def = self.def;
         const rs = render.renderSize();

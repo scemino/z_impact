@@ -4,11 +4,16 @@ const utils = @import("utils.zig");
 const vec2 = @import("types.zig").vec2;
 const Vec2 = @import("types.zig").Vec2;
 
+/// A 2D perlin noise generator. This generates "random" numbers with natural
+/// looking gradients for points that are close together.
+/// See https://en.wikipedia.org/wiki/Perlin_noise
+/// FIXME: should this even be part of high_impact?
 pub const Noise = struct {
     size_bits: u4,
     g: []Vec2,
     p: []u16,
 
+    /// Get the noise value in the range of -1..1
     pub fn gen(n: Noise, pos: Vec2) f32 {
         const size = @as(u16, 1) << n.size_bits;
         const mask: usize = size - 1;
@@ -53,6 +58,7 @@ pub const Noise = struct {
     }
 };
 
+/// Bump allocate and create a noise generator with a size of 1 << size_bits
 pub fn noise(size_bits: u4) *Noise {
     var ba = alloc.BumpAllocator{};
     var n = ba.allocator().create(Noise) catch @panic("failed to create noise");

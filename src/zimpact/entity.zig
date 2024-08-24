@@ -16,13 +16,13 @@ pub const EntityRef = struct {
     index: u16,
 };
 
-// A list of entity refs. Usually bump allocated and thus only valid for the
-// current frame.
+/// A list of entity refs. Usually bump allocated and thus only valid for the
+/// current frame.
 pub const EntityList = struct {
     entities: []EntityRef,
 };
 
-// entity_ref_none will always resolve to NULL
+/// entity_ref_none will always resolve to NULL
 pub fn entityRefNone() EntityRef {
     return .{ .id = 0, .index = 0 };
 }
@@ -52,23 +52,23 @@ pub const ENTITY_COLLIDES_PASSIVE = (1 << 5);
 pub const ENTITY_COLLIDES_ACTIVE = (1 << 6);
 pub const ENTITY_COLLIDES_FIXED = (1 << 7);
 
-// The ent->physics determines how and if entities are moved and collide.
-// Don't collide, don't move. Useful for items that just sit there.
+/// The ent->physics determines how and if entities are moved and collide.
+/// Don't collide, don't move. Useful for items that just sit there.
 pub const ENTITY_PHYSICS_NONE = 0;
 
-// Move the entity according to its velocity, but don't collide
+/// Move the entity according to its velocity, but don't collide
 pub const ENTITY_PHYSICS_MOVE = (1 << 0);
 
-// Move the entity and collide with the collision_map
+/// Move the entity and collide with the collision_map
 pub const ENTITY_PHYSICS_WORLD = (1 << 0) | ENTITY_COLLIDES_WORLD;
 
-// Move the entity, collide with the collision_map and other entities, but
-// only those other entities that have matching physics:
-// In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
-// moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
-// vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
-// don't collide with other LITE or PASSIVE entities at all. The behaiviour
-// for FIXED vs. FIXED collisions is undefined.
+/// Move the entity, collide with the collision_map and other entities, but
+/// only those other entities that have matching physics:
+/// In ACTIVE vs. LITE or FIXED vs. ANY collisions, only the "weak" entity
+/// moves, while the other one stays fixed. In ACTIVE vs. ACTIVE and ACTIVE
+/// vs. PASSIVE collisions, both entities are moved. LITE or PASSIVE entities
+/// don't collide with other LITE or PASSIVE entities at all. The behaiviour
+/// for FIXED vs. FIXED collisions is undefined.
 pub const ENTITY_PHYSICS_LITE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_LITE;
 pub const ENTITY_PHYSICS_PASSIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_PASSIVE;
 pub const ENTITY_PHYSICS_ACTIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_ACTIVE;
@@ -106,48 +106,48 @@ pub fn EntityVtab(comptime TEngine: type, comptime Entity: type) type {
     return struct {
         const engine = TEngine;
 
-        // Called once at program start, just before main_init(). Use this to
-        // load assets and animations for your entity types.
+        /// Called once at program start, just before main_init(). Use this to
+        /// load assets and animations for your entity types.
         load: *const fn () void = noopLoad,
 
-        // Called once for each entity, when the entity is created through
-        // entity_spawn(). Use this to set all properties (size, offset, animation)
-        // of your entity.
+        /// Called once for each entity, when the entity is created through
+        /// entity_spawn(). Use this to set all properties (size, offset, animation)
+        /// of your entity.
         init: *const fn (self: *Entity) void = noopInit,
 
-        // Called once after engine_load_level() when all entities have been
-        // spawned. The json_t *def contains the "settings" of the entity from the
-        // level json.
+        /// Called once after engine_load_level() when all entities have been
+        /// spawned. The json_t *def contains the "settings" of the entity from the
+        /// level json.
         settings: *const fn (self: *Entity, def: ObjectMap) void = noopSettings,
 
-        // Called once per frame for each entity. The default entity_update_base()
-        // moves the entity according to its physics
-        update: *const fn (self: *Entity) void = engine.baseUpdate,
+        /// Called once per frame for each entity. The default entity_update_base()
+        /// moves the entity according to its physics
+        update: *const fn (self: *Entity) void = engine.entityBaseUpdate,
 
-        // Called once per frame for each entity. The default entity_draw_base()
-        // draws the entity->anim
+        /// Called once per frame for each entity. The default entity_draw_base()
+        /// draws the entity->anim
         draw: *const fn (self: *Entity, viewport: Vec2) void = engine.entityBaseDraw,
 
-        // Called when the entity is removed from the game through entity_kill()
+        /// Called when the entity is removed from the game through entity_kill()
         kill: *const fn (self: *Entity) void = noopKill,
 
-        // Called when this entity touches another entity, according to
-        // entity->check_against
+        /// Called when this entity touches another entity, according to
+        /// entity->check_against
         touch: *const fn (self: *Entity, other: *Entity) void = noopTouch,
 
-        // Called when the entity collides with the game world or another entity
-        // Careful: the trace will only be set from a game world collision. It will
-        // be NULL for a collision with another entity.
+        /// Called when the entity collides with the game world or another entity
+        /// Careful: the trace will only be set from a game world collision. It will
+        /// be NULL for a collision with another entity.
         collide: *const fn (self: *Entity, normal: Vec2, trace: ?Trace) void = noopCollide,
 
-        // Called through entity_damage(). The default entity_base_damage() deducts
-        // damage from the entity's health and calls entity_kill() if it's <= 0.
+        /// Called through entity_damage(). The default entity_base_damage() deducts
+        /// damage from the entity's health and calls entity_kill() if it's <= 0.
         damage: *const fn (self: *Entity, other: *Entity, damage: f32) void = engine.entityBaseDamage,
 
-        // Called through entity_trigger()
+        /// Called through entity_trigger()
         trigger: *const fn (self: *Entity, other: *Entity) void = noopTrigger,
 
-        // Called through entity_message()
+        /// Called through entity_message()
         message: *const fn (self: *Entity, message: ?*anyopaque, data: ?*anyopaque) void = noopMessage,
 
         // zig fmt: off

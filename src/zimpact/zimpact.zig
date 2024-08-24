@@ -32,6 +32,6 @@ pub const Trace = @import("trace.zig").Trace;
 pub const utils = @import("utils.zig");
 pub const Scene = @import("scene.zig").Scene;
 pub const cam = @import("camera.zig");
-pub const camera_t = @import("camera.zig").camera_t;
+pub const camera_t = @import("camera.zig").Camera;
 pub const noise = @import("noise.zig");
 pub const Noise = noise.Noise;

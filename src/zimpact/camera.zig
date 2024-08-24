@@ -13,16 +13,13 @@ const fromVec2i = types.fromVec2i;
 /// closer to the action. Using a camera is totally optional; you could instead
 /// manipulate the engine.viewport directly if you wish.
 /// Cameras can be instantiated from just a camera_t, i.e.:
-
-// camera_t cam;
-// camera_follow(&cam, some_entity, true);
-
-// To actually move the camera, you have to call camera_update(). This is
-// typically done once per frame.
-
-// If the engine.collision_map is set, the camera will ensure the screen stays
-// within the bounds of this map.
-pub const camera_t = struct {
+/// var cam: Camera;
+/// cam.follow(some_entity, true);
+/// To actually move the camera, you have to call cam.update(). This is
+/// typically done once per frame.
+/// If the engine.collision_map is set, the camera will ensure the screen stays
+/// within the bounds of this map.
+pub const Camera = struct {
     // A factor of how fast the camera is moving. Values between 0.5..10
     // are usually sensible.
     speed: f32 = 0,
@@ -57,7 +54,7 @@ pub const camera_t = struct {
     pos: Vec2 = vec2(0, 0),
     vel: Vec2 = vec2(0, 0),
 
-    pub fn viewportTarget(cam: *camera_t) Vec2 {
+    pub fn viewportTarget(cam: *Camera) Vec2 {
         const screen_size = fromVec2i(render.renderSize());
         const screen_center = screen_size.mulf(0.5);
         var viewport_target = cam.pos.sub(screen_center).add(cam.offset);
@@ -70,7 +67,8 @@ pub const camera_t = struct {
         return viewport_target;
     }
 
-    pub fn update(cam: *camera_t, eng: anytype) void {
+    // Advance the camera towards its target
+    pub fn update(cam: *Camera, eng: anytype) void {
         if (eng.entityByRef(cam.follow_entity)) |entity_follow| {
             const size = vec2(@min(entity_follow.base.size.x, cam.deadzone.x), @min(entity_follow.base.size.y, cam.deadzone.y));
 
@@ -105,16 +103,21 @@ pub const camera_t = struct {
         }
     }
 
-    pub fn set(cam: *camera_t, pos: Vec2) void {
+    // Set the camera to pos (no movement)
+    pub fn set(cam: *Camera, pos: Vec2) void {
         cam.pos = pos;
         engine.viewport = viewportTarget(cam);
     }
 
-    pub fn move(cam: *camera_t, pos: Vec2) void {
+    // Set the target to pos
+    pub fn move(cam: *Camera, pos: Vec2) void {
         cam.pos = pos;
     }
 
-    pub fn follow(cam: *camera_t, eng: anytype, f: EntityRef, snap: bool) void {
+    // Follow an entity. Set snap to true when you want to jump to it. The camera
+    // will follow this target for as long as it's alive (or until following
+    // another entity / unfollow)
+    pub fn follow(cam: *Camera, eng: anytype, f: EntityRef, snap: bool) void {
         cam.follow_entity = f;
         if (snap) {
             cam.update(eng);
@@ -122,7 +125,8 @@ pub const camera_t = struct {
         }
     }
 
-    pub fn unfollow(cam: *camera_t) void {
+    // Stop following the entity
+    pub fn unfollow(cam: *Camera) void {
         cam.follow = engine.entityRefNone();
     }
 };

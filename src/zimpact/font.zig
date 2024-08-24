@@ -19,17 +19,17 @@ const FontGlyph = struct {
 /// file that specifies the position, size and advance width of each glyph.
 /// Use the font_tool.html to create the image and json.
 pub const Font = struct {
-    // The line height when drawing multi-line text. By default, this is the
-    // image height * 1.25. Increase this to have more line spacing.
+    /// The line height when drawing multi-line text. By default, this is the
+    /// image height * 1.25. Increase this to have more line spacing.
     line_height: i32,
 
-    // Extra spacing between each letter on a single line. Default 0
+    /// Extra spacing between each letter on a single line. Default 0
     letter_spacing: i32,
 
-    // A tint color for this font. Default rgba_white()
+    /// A tint color for this font. Default rgba_white()
     color: Rgba,
 
-    // Internal state
+    /// Internal state
     first_char: i32,
     last_char: i32,
     image: *Image,

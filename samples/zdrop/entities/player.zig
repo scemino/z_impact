@@ -48,7 +48,7 @@ fn update(self: *Entity) void {
     } else {
         self.base.accel.x = 0;
     }
-    game.Engine.baseUpdate(self);
+    game.Engine.entityBaseUpdate(self);
 }
 
 fn draw(self: *Entity, vp: Vec2) void {

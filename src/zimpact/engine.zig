@@ -642,7 +642,7 @@ pub fn Engine(comptime T: type) type {
             return entity_vtab[@intFromEnum(tag)];
         }
 
-        // Whether two entities are overlapping
+        /// Whether two entities are overlapping
         pub fn entityIsTouching(self: *Entity, other: *Entity) bool {
             return !(self.base.pos.x >= other.base.pos.x + other.base.size.x or
                 self.base.pos.x + self.base.size.x <= other.base.pos.x or
@@ -650,8 +650,8 @@ pub fn Engine(comptime T: type) type {
                 self.base.pos.y + self.base.size.y <= other.base.pos.y);
         }
 
-        // Get the name of an entity (usually the name is specified through "settings"
-        // in a level json). May be null.
+        /// Get the name of an entity (usually the name is specified through "settings"
+        /// in a level json). May be null.
         pub fn entityByName(name: []const u8) ?*Entity {
             // FIXME:PERF: linear search
             for (entities[0..entities_len]) |entity| {
@@ -663,11 +663,11 @@ pub fn Engine(comptime T: type) type {
             return null;
         }
 
-        // Get a list of entities that are within the radius of this entity. Optionally
-        // filter by one entity type. Use ENTITY_TYPE_NONE to get all entities in
-        // proximity.
-        // If called while the game is running (as opposed to during scene init), the
-        // list is only valid for the duration of the current frame.
+        /// Get a list of entities that are within the radius of this entity. Optionally
+        /// filter by one entity type. Use ENTITY_TYPE_NONE to get all entities in
+        /// proximity.
+        /// If called while the game is running (as opposed to during scene init), the
+        /// list is only valid for the duration of the current frame.
         pub fn entitiesByProximity(kind: anytype, ent: *Entity, radius: f32) EntityList {
             const pos = entityCenter(ent);
             return entitiesByLocation(kind, pos, radius, ent);
@@ -732,12 +732,12 @@ pub fn Engine(comptime T: type) type {
             return EntityList{ .entities = ba.allocator().dupe(EntityRef, list.items) catch @panic("failed to append") };
         }
 
-        // Get a list of all entities of a certain type
-        // If called while the game is running (as opposed to during scene init), the
-        // list is only valid for the duration of the current frame.
-        // Get a list of all entities of a certain type
-        // If called while the game is running (as opposed to during scene init), the
-        // list is only valid for the duration of the current frame.
+        /// Get a list of all entities of a certain type
+        /// If called while the game is running (as opposed to during scene init), the
+        /// list is only valid for the duration of the current frame.
+        /// Get a list of all entities of a certain type
+        /// If called while the game is running (as opposed to during scene init), the
+        /// list is only valid for the duration of the current frame.
         pub fn entitiesByType(kind: anytype) EntityList {
             var ba = alloc.BumpAllocator{};
             var list = std.ArrayList(EntityRef).init(ba.allocator());
@@ -774,8 +774,8 @@ pub fn Engine(comptime T: type) type {
             return EntityList{ .entities = ba.allocator().dupe(EntityRef, list.items) catch @panic("failed to append") };
         }
 
-        // Get an entity by its reference. This will be NULL if the referred entity is
-        // not valid anymore.
+        /// Get an entity by its reference. This will be NULL if the referred entity is
+        /// not valid anymore.
         pub fn entityByRef(ref: EntityRef) ?*Entity {
             const ent = &entities_storage[ref.index];
             if (ent.base.is_alive and ent.base.id == ref.id) {
@@ -790,14 +790,14 @@ pub fn Engine(comptime T: type) type {
             return lhs.base.draw_order <= rhs.base.draw_order;
         }
 
-        // Add a background map; typically done through engine_load_level()
+        /// Add a background map; typically done through engine_load_level()
         pub fn addBackgroundMap(map: *Map) void {
             assert(background_maps_len < ENGINE_MAX_BACKGROUND_MAPS); // "BACKGROUND_MAPS_MAX reached"
             background_maps[background_maps_len] = map;
             background_maps_len += 1;
         }
 
-        // Set the collision map; typically done through engine_load_level()
+        /// Set the collision map; typically done through engine_load_level()
         pub fn setCollisionMap(map: *Map) void {
             collision_map = map;
         }

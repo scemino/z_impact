@@ -75,27 +75,48 @@ pub const ENTITY_PHYSICS_ACTIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_ACTIVE;
 pub const ENTITY_PHYSICS_FIXED = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_FIXED;
 
 pub const EntityBase = struct {
-    id: u16, // A unique id for this entity, assigned on spawn
-    is_alive: bool, // Determines if this entity is in use
-    on_ground: bool = false, // True for engine.gravity > 0 and standing on something
-    draw_order: i32 = 0, // Entities are sorted (ascending) by this before drawing
-    physics: u8 = ENTITY_PHYSICS_NONE, // Physics behavior
-    group: u8 = ENTITY_GROUP_NONE, // The groups this entity belongs to
-    check_against: u8 = ENTITY_GROUP_NONE, // The groups that this entity can touch
-    pos: Vec2 = vec2(0, 0), // Top left position of the bounding box in the game world; usually not manipulated directly
-    size: Vec2 = vec2(0, 0), // The bounding box for physics
-    vel: Vec2 = vec2(0, 0), // Velocity
-    accel: Vec2 = vec2(0, 0), // Acceleration
-    friction: Vec2 = vec2(0, 0), // Friction as a factor of engine.tick * velocity
-    offset: Vec2 = vec2(0, 0), // Offset from position to draw the anim
-    name: []const u8 = &[0]u8{}, // Name used for targets etc. usually set through json data
-    health: f32 = 0, // When entity is damaged an resulting health < 0, the entity is killed
-    gravity: f32 = 0, // Gravity factor with engine.gravity. Default 1.0
-    mass: f32 = 0, // Mass factor for active collisions. Default 1.0
-    restitution: f32 = 0, // The "bounciness factor"
-    max_ground_normal: f32 = 0, // For slopes, determines on how steep the slope can be to set on_ground flag. Default cosf(to_radians(46))
-    min_slide_normal: f32 = 0, // For slopes, determines how steep the slope has to be for entity to slide down. Default cosf(to_radians(0))
-    anim: Anim = undefined, // The animation that is automatically drawn
+    /// A unique id for this entity, assigned on spawn
+    id: u16,
+    /// Determines if this entity is in use
+    is_alive: bool,
+    /// True for engine.gravity > 0 and standing on something
+    on_ground: bool = false,
+    /// Entities are sorted (ascending) by this before drawing
+    draw_order: i32 = 0,
+    /// Physics behavior
+    physics: u8 = ENTITY_PHYSICS_NONE,
+    /// The groups this entity belongs to
+    group: u8 = ENTITY_GROUP_NONE,
+    /// The groups that this entity can touch
+    check_against: u8 = ENTITY_GROUP_NONE,
+    /// Top left position of the bounding box in the game world; usually not manipulated directly
+    pos: Vec2 = vec2(0, 0),
+    /// The bounding box for physics
+    size: Vec2 = vec2(0, 0),
+    /// Velocity
+    vel: Vec2 = vec2(0, 0),
+    /// Acceleration
+    accel: Vec2 = vec2(0, 0),
+    /// Friction as a factor of engine.tick * velocity
+    friction: Vec2 = vec2(0, 0),
+    /// Offset from position to draw the anim
+    offset: Vec2 = vec2(0, 0),
+    /// Name used for targets etc. usually set through json data
+    name: []const u8 = &[0]u8{},
+    /// When entity is damaged an resulting health < 0, the entity is killed
+    health: f32 = 0,
+    /// Gravity factor with engine.gravity. Default 1.0
+    gravity: f32 = 0,
+    /// Mass factor for active collisions. Default 1.0
+    mass: f32 = 0,
+    /// The "bounciness factor"
+    restitution: f32 = 0,
+    /// For slopes, determines on how steep the slope can be to set on_ground flag. Default cosf(to_radians(46))
+    max_ground_normal: f32 = 0,
+    /// For slopes, determines how steep the slope has to be for entity to slide down. Default cosf(to_radians(0))
+    min_slide_normal: f32 = 0,
+    /// The animation that is automatically drawn
+    anim: Anim = undefined,
 };
 
 /// The EntityVtab struct must implemented by all your entity types. It holds

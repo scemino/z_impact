@@ -25,6 +25,13 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(lib);
 
+    const docs = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+    b.getInstallStep().dependOn(&docs.step);
+
     for ([_][]const u8{"zdrop"}) |sample| {
         const run_step = b.step(b.fmt("run-{s}", .{sample}), b.fmt("Run {s}.zig example", .{sample}));
         const exe = b.addExecutable(.{

@@ -70,26 +70,26 @@ pub const Camera = struct {
     // Advance the camera towards its target
     pub fn update(cam: *Camera, eng: anytype) void {
         if (eng.entityByRef(cam.follow_entity)) |entity_follow| {
-            const size = vec2(@min(entity_follow.base.size.x, cam.deadzone.x), @min(entity_follow.base.size.y, cam.deadzone.y));
+            const size = vec2(@min(entity_follow.size.x, cam.deadzone.x), @min(entity_follow.size.y, cam.deadzone.y));
 
-            if (entity_follow.base.pos.x < cam.deadzone_pos.x) {
-                cam.deadzone_pos.x = entity_follow.base.pos.x;
+            if (entity_follow.pos.x < cam.deadzone_pos.x) {
+                cam.deadzone_pos.x = entity_follow.pos.x;
                 cam.look_ahead_target.x = -cam.look_ahead.x;
-            } else if (entity_follow.base.pos.x + size.x > cam.deadzone_pos.x + cam.deadzone.x) {
-                cam.deadzone_pos.x = entity_follow.base.pos.x + size.x - cam.deadzone.x;
+            } else if (entity_follow.pos.x + size.x > cam.deadzone_pos.x + cam.deadzone.x) {
+                cam.deadzone_pos.x = entity_follow.pos.x + size.x - cam.deadzone.x;
                 cam.look_ahead_target.x = cam.look_ahead.x;
             }
 
-            if (entity_follow.base.pos.y < cam.deadzone_pos.y) {
-                cam.deadzone_pos.y = entity_follow.base.pos.y;
+            if (entity_follow.pos.y < cam.deadzone_pos.y) {
+                cam.deadzone_pos.y = entity_follow.pos.y;
                 cam.look_ahead_target.y = -cam.look_ahead.y;
-            } else if (entity_follow.base.pos.y + size.y > cam.deadzone_pos.y + cam.deadzone.y) {
-                cam.deadzone_pos.y = entity_follow.base.pos.y + size.y - cam.deadzone.y;
+            } else if (entity_follow.pos.y + size.y > cam.deadzone_pos.y + cam.deadzone.y) {
+                cam.deadzone_pos.y = entity_follow.pos.y + size.y - cam.deadzone.y;
                 cam.look_ahead_target.y = cam.look_ahead.y;
             }
 
-            if (cam.snap_to_platform and entity_follow.base.on_ground) {
-                cam.deadzone_pos.y = entity_follow.base.pos.y + entity_follow.base.size.y - cam.deadzone.y;
+            if (cam.snap_to_platform and entity_follow.on_ground) {
+                cam.deadzone_pos.y = entity_follow.pos.y + entity_follow.size.y - cam.deadzone.y;
             }
             const deadzone_target = cam.deadzone_pos.add(cam.deadzone.mulf(0.5));
             cam.pos = deadzone_target.add(cam.look_ahead_target);

@@ -32,7 +32,7 @@ fn init(self: *Entity) void {
 
 fn update(self: *Entity) void {
     if ((self.pos.y - zi.engine.viewport.y) < -32) {
-        zi.Engine.entityKill(self);
+        zi.entity.entityKill(self);
     }
 }
 
@@ -40,7 +40,7 @@ fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
     snd.play(sound_collect);
-    zi.Engine.entityKill(self);
+    zi.entity.entityKill(self);
 }
 
 pub const vtab: zi.EntityVtab = .{

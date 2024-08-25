@@ -44,7 +44,7 @@ fn place_coin(row: i32) void {
                 @floatFromInt(x * map.tile_size + 1),
                 @floatFromInt((row - 2) * map.tile_size + 2),
             );
-            _ = zi.Engine.entitySpawn(.coin, pos);
+            _ = zi.entity.entitySpawn(.coin, pos);
             return;
         }
     }
@@ -72,7 +72,7 @@ fn init() void {
     zi.Engine.setCollisionMap(&map);
     zi.Engine.addBackgroundMap(&map);
 
-    player = zi.Engine.entitySpawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
+    player = zi.entity.entitySpawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
 }
 
 fn update() void {
@@ -92,9 +92,9 @@ fn update() void {
         // Move screen and entities one tile up
         engine.viewport.y -= 8;
         player.pos.y -= 8;
-        const coins = zi.Engine.entitiesByType(.coin);
+        const coins = zi.entity.entitiesByType(.coin);
         for (coins.entities) |coin| {
-            const entity = zi.Engine.entityByRef(coin);
+            const entity = zi.entity.entityByRef(coin);
             entity.?.pos.y -= 8;
         }
 

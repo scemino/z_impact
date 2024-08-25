@@ -48,11 +48,11 @@ fn update(self: *Entity) void {
     } else {
         self.accel.x = 0;
     }
-    zi.Engine.entityBaseUpdate(self);
+    zi.entity.entityBaseUpdate(self);
 }
 
 fn draw(self: *Entity, vp: Vec2) void {
-    zi.Engine.entityBaseDraw(self, vp);
+    ett.entityBaseDraw(self, vp);
 
     // Draw arrows when player is off-screen
     if (self.pos.y < vp.y - 4) {

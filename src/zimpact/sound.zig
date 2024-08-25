@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const options = @import("options.zig").options;
 const platform = @import("platform.zig");
 const qoa = @import("qoa.zig");
 const BumpAllocator = @import("allocator.zig").BumpAllocator;
@@ -38,26 +39,14 @@ const SoundNode = struct {
     sample_pos: f32,
 };
 
-// The maximum number of sources to be loaded at a time. This only affects
-// memory usage, but not performance.
-const SOUND_MAX_SOURCES = 128;
-
-// The maximum number of active nodes that can be mixed at time
-const SOUND_MAX_NODES = 32;
-
-// The maximum number of samples for which a sound source is decompressed
-// completely at load time. Everything above this limit will be loaded into
-// memory in compressed form and only decompressed on demand.
-const SOUND_MAX_UNCOMPRESSED_SAMPLES = (64 * 1024);
-
 // sound system ----------------------------------------------------------------
 
 var global_volume: f32 = 1;
 var inv_out_samplerate: f32 = undefined;
-var sources: [SOUND_MAX_SOURCES]SoundSource = undefined;
+var sources: [options.SOUND_MAX_SOURCES]SoundSource = undefined;
 var sources_len: usize = 0;
-var source_paths: [SOUND_MAX_SOURCES][]const u8 = undefined;
-var sound_nodes: [SOUND_MAX_NODES]SoundNode = undefined;
+var source_paths: [options.SOUND_MAX_SOURCES][]const u8 = undefined;
+var sound_nodes: [options.SOUND_MAX_NODES]SoundNode = undefined;
 var nodes_len: usize = 0;
 var sound_unique_id: u16 = 0;
 
@@ -284,7 +273,7 @@ pub fn sound(src: *SoundSource) ?Sound {
 }
 
 inline fn getNode(snd: Sound) ?*SoundNode {
-    if (snd.index < SOUND_MAX_NODES and sound_nodes[snd.index].id == snd.id)
+    if (snd.index < options.SOUND_MAX_NODES and sound_nodes[snd.index].id == snd.id)
         return &sound_nodes[snd.index];
     return null;
 }

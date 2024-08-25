@@ -1,16 +1,13 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
+const options = @import("options.zig").options;
 
-/// The total size of the hunk
-const ALLOC_SIZE = 32 * 1024 * 1024;
-var hunk: [ALLOC_SIZE]u8 = [1]u8{0} ** ALLOC_SIZE;
+var hunk: [options.ALLOC_SIZE]u8 = [1]u8{0} ** options.ALLOC_SIZE;
 var bump_len: usize = 0;
 var temp_len: usize = 0;
 
-/// The max number of temp objects to be allocated at a time
-const ALLOC_TEMP_OBJECTS_MAX = 8;
-var temp_objects: [ALLOC_TEMP_OBJECTS_MAX]usize = [1]usize{0} ** ALLOC_TEMP_OBJECTS_MAX;
+var temp_objects: [options.ALLOC_TEMP_OBJECTS_MAX]usize = [1]usize{0} ** options.ALLOC_TEMP_OBJECTS_MAX;
 var temp_objects_len: usize = 0;
 
 // We statically reserve a single "hunk" of memory at program start. Memory
@@ -69,7 +66,7 @@ pub const BumpAllocator = struct {
         _ = log2_ptr_align;
         _ = ret_addr;
         const size = ((len + 7) >> 3) << 3; // align to 8 bytes
-        assert(bump_len + temp_len + len < ALLOC_SIZE);
+        assert(bump_len + temp_len + len < options.ALLOC_SIZE);
         @memset(hunk[bump_len .. bump_len + size], 0);
         bump_len += size;
         return hunk[bump_len - size .. bump_len].ptr;
@@ -112,15 +109,15 @@ pub const TempAllocator = struct {
         temp_len += size;
         temp_objects[temp_objects_len] = temp_len;
         temp_objects_len += 1;
-        return hunk[ALLOC_SIZE - temp_len ..].ptr;
+        return hunk[options.ALLOC_SIZE - temp_len ..].ptr;
     }
 
     fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, ret_addr: usize) void {
         _ = ctx;
         _ = log2_old_align_u8;
         _ = ret_addr;
-        const offset: usize = ALLOC_SIZE + @intFromPtr(&hunk[0]) - @intFromPtr(&old_mem[0]);
-        assert(offset < ALLOC_SIZE);
+        const offset: usize = options.ALLOC_SIZE + @intFromPtr(&hunk[0]) - @intFromPtr(&old_mem[0]);
+        assert(offset < options.ALLOC_SIZE);
 
         var found = false;
         var remaining_max: usize = 0;
@@ -180,7 +177,7 @@ pub fn bumpReset(mark: BumpMark) void {
 pub fn bumpFromTemp(comptime T: type, temp: []T, offset: usize, size: usize) []T {
     var ta = TempAllocator{};
     ta.allocator().free(temp);
-    assert(bump_len + temp_len + size < ALLOC_SIZE); //, "Failed to allocate %d bytes in hunk mem", size);
+    assert(bump_len + temp_len + size < options.ALLOC_SIZE); //, "Failed to allocate %d bytes in hunk mem", size);
     var fa = std.heap.FixedBufferAllocator.init(hunk[bump_len .. bump_len + size]);
     bump_len += size;
     return fa.allocator().dupe(T, temp[offset .. offset + size]) catch @panic("failed to bump from temp");

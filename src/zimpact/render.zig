@@ -14,23 +14,7 @@ const slog = sokol.log;
 const sg = sokol.gfx;
 const sgl = sokol.gl;
 const sglue = sokol.glue;
-
-const RENDER_ATLAS_SIZE = 64;
-const RENDER_ATLAS_GRID = 8;
-const RENDER_ATLAS_SIZE_PX = (RENDER_ATLAS_SIZE * RENDER_ATLAS_GRID);
-
-const RENDER_SCALE_NONE = 0;
-const RENDER_SCALE_DISCRETE = 1;
-const RENDER_SCALE_EXACT = 2;
-
-const RENDER_RESIZE_NONE = 0;
-const RENDER_RESIZE_WIDTH = 1;
-const RENDER_RESIZE_HEIGHT = 2;
-const RENDER_RESIZE_ANY = 3;
-
-const RENDER_RESIZE_MODE = RENDER_RESIZE_NONE;
-
-pub const RENDER_SCALE_MODE = RENDER_SCALE_DISCRETE;
+const options = @import("options.zig");
 
 var logical_size: Vec2i = types.vec2i(64, 96);
 var screen_scale: f32 = 0.0;
@@ -185,24 +169,24 @@ pub fn snapPx(pos: Vec2) Vec2 {
 /// and resize mode
 pub fn resize(avaiable_size: Vec2i) void {
     // Determine Zoom
-    if (RENDER_SCALE_MODE == RENDER_SCALE_NONE) {
+    if (options.options.RENDER_SCALE_MODE == options.RENDER_SCALE_NONE) {
         screen_scale = 1;
     } else {
         screen_scale = @min(@as(f32, @floatFromInt(avaiable_size.x)) / @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(avaiable_size.y)) / @as(f32, @floatFromInt(logical_size.y)));
 
-        if (RENDER_SCALE_MODE == RENDER_SCALE_DISCRETE) {
+        if (options.options.RENDER_SCALE_MODE == options.RENDER_SCALE_DISCRETE) {
             screen_scale = @max(@floor(screen_scale), 0.5);
         }
     }
 
     // Determine size
-    if ((RENDER_RESIZE_MODE & RENDER_RESIZE_WIDTH) != 0) {
+    if ((options.options.RENDER_RESIZE_MODE & options.RENDER_RESIZE_WIDTH) != 0) {
         screen_size.x = @max(avaiable_size.x, logical_size.x);
     } else {
         screen_size.x = @as(i32, @intCast(logical_size.x)) * @as(i32, @intFromFloat(screen_scale));
     }
 
-    if ((RENDER_RESIZE_MODE & RENDER_RESIZE_HEIGHT) != 0) {
+    if ((options.options.RENDER_RESIZE_MODE & options.RENDER_RESIZE_HEIGHT) != 0) {
         screen_size.y = @max(avaiable_size.y, logical_size.y);
     } else {
         screen_size.y = @as(i32, @intCast(logical_size.y)) * @as(i32, @intFromFloat(screen_scale));
@@ -211,7 +195,6 @@ pub fn resize(avaiable_size: Vec2i) void {
     logical_size.x = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.x)) / screen_scale));
     logical_size.y = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.y)) / screen_scale));
     inv_screen_scale = 1.0 / screen_scale;
-    // setScreen(screen_size);
 }
 
 pub fn setBlendMode(new_mode: BlendMode) void {

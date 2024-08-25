@@ -7,6 +7,23 @@ const game = @import("game.zig");
 const g = @import("global.zig");
 const player = @import("entities/player.zig");
 
+/// -----------------------------------------------------------------------------
+/// Z Impact configuration
+///
+/// These defines are ALL optional. They overwrite the defaults set by
+/// z_impact and configure aspects of the library
+///
+/// The values here (particularly resource limits) have been dialed in to this
+/// particular game. Increase them as needed. Allocating a few GB and thousands
+/// of entities is totally fine.
+pub const zi_options = .{
+    .ALLOC_SIZE = (2 * 1024 * 1024),
+    .ALLOC_TEMP_OBJECTS_MAX = 8,
+    .ENTITIES_MAX = 64,
+    .ENTITY_TYPE = game.UEntity,
+    .RENDER_RESIZE_MODE = zi.options.RENDER_RESIZE_NONE,
+};
+
 fn init() void {
     // Keyboard
     zi.input.bind(.INPUT_KEY_LEFT, player.A_LEFT);
@@ -16,16 +33,16 @@ fn init() void {
     g.font = zi.font("assets/font_04b03.qoi", "assets/font_04b03.json");
     g.font.color = zi.rgba(75, 84, 0, 255);
 
-    game.Engine.setScene(&sgame.scene_game);
+    zi.Engine.setScene(&sgame.scene_game);
 }
 
 pub fn main() void {
-    const vtabs = [_]game.EntityVtab{
+    const vtabs = [_]zi.EntityVtab{
         game.coin.vtab,
         game.player.vtab,
     };
 
-    game.Engine.run(.{
+    zi.Engine.run(.{
         .vtabs = &vtabs,
         .window_title = "Z Drop",
         .render_size = zi.vec2i(64, 96),

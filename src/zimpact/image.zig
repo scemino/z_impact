@@ -11,10 +11,10 @@ const TempAllocator = @import("allocator.zig").TempAllocator;
 const bumpAlloc = @import("allocator.zig").bumpAlloc;
 const render = @import("render.zig");
 const ziengine = @import("engine.zig");
+const options = @import("options.zig").options;
 
-const IMAGE_MAX_SOURCES = 1024;
-var image_paths: [IMAGE_MAX_SOURCES][]u8 = undefined;
-var images: [IMAGE_MAX_SOURCES]Image = undefined;
+var image_paths: [options.IMAGE_MAX_SOURCES][]u8 = undefined;
+var images: [options.IMAGE_MAX_SOURCES]Image = undefined;
 var images_len: usize = 0;
 
 /// Called by the engine to manage image memory
@@ -38,7 +38,7 @@ pub const Image = struct {
             }
         }
 
-        assert(images_len < IMAGE_MAX_SOURCES);
+        assert(images_len < options.IMAGE_MAX_SOURCES);
         assert(!ziengine.is_running);
 
         image_paths[images_len] = try bumpAlloc(u8, path.len);

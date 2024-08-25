@@ -17,7 +17,7 @@ const input = zi.input;
 const game = @import("../game.zig");
 const g = @import("../global.zig");
 const p = @import("../entities/player.zig");
-const Entity = game.Entity;
+const Entity = zi.Entity;
 
 var map: Map = undefined;
 var game_over: bool = false;
@@ -44,7 +44,7 @@ fn place_coin(row: i32) void {
                 @floatFromInt(x * map.tile_size + 1),
                 @floatFromInt((row - 2) * map.tile_size + 2),
             );
-            _ = game.Engine.entitySpawn(.coin, pos);
+            _ = zi.Engine.entitySpawn(.coin, pos);
             return;
         }
     }
@@ -69,15 +69,15 @@ fn init() void {
     }
 
     // The map is used as CollisionMap AND BackgroundMap
-    game.Engine.setCollisionMap(&map);
-    game.Engine.addBackgroundMap(&map);
+    zi.Engine.setCollisionMap(&map);
+    zi.Engine.addBackgroundMap(&map);
 
-    player = game.Engine.entitySpawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
+    player = zi.Engine.entitySpawn(.player, vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0 - 2.0, 16)).?;
 }
 
 fn update() void {
     if (input.pressed(p.A_START))
-        game.Engine.setScene(&scene_game);
+        zi.Engine.setScene(&scene_game);
 
     if (game_over)
         return;
@@ -91,11 +91,11 @@ fn update() void {
 
         // Move screen and entities one tile up
         engine.viewport.y -= 8;
-        player.base.pos.y -= 8;
-        const coins = game.Engine.entitiesByType(.coin);
+        player.pos.y -= 8;
+        const coins = zi.Engine.entitiesByType(.coin);
         for (coins.entities) |coin| {
-            const entity = game.Engine.entityByRef(coin);
-            entity.?.base.pos.y -= 8;
+            const entity = zi.Engine.entityByRef(coin);
+            entity.?.pos.y -= 8;
         }
 
         // Move all tiles up one row
@@ -108,10 +108,10 @@ fn update() void {
         }
     }
 
-    game.Engine.sceneBaseUpdate();
+    zi.Engine.sceneBaseUpdate();
 
     // Check for gameover
-    const pp = player.base.pos.y - engine.viewport.y;
+    const pp = player.pos.y - engine.viewport.y;
     if (pp > @as(f32, @floatFromInt(render.renderSize().y)) + 8.0 or pp < -32) {
         game_over = true;
         snd.play(sound_game_over);
@@ -126,7 +126,7 @@ fn draw() void {
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 48.0), "Press Enter", .FONT_ALIGN_CENTER);
         g.font.draw(vec2(@as(f32, @floatFromInt(render.renderSize().x)) / 2.0, 56.0), "to Restart", .FONT_ALIGN_CENTER);
     } else {
-        game.Engine.sceneBaseDraw();
+        zi.Engine.sceneBaseDraw();
     }
 
     var buf: [64]u8 = undefined;

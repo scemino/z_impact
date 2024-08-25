@@ -5,6 +5,7 @@ const Trace = @import("trace.zig").Trace;
 const vec2 = @import("types.zig").vec2;
 const Engine = @import("engine.zig").Engine;
 const ObjectMap = std.json.ObjectMap;
+const options = @import("options.zig").options;
 
 /// Entity refs can be used to safely keep track of entities. Refs can be
 /// resolved to an actual entity_t with entity_by_ref(). Refs will resolve to
@@ -74,7 +75,7 @@ pub const ENTITY_PHYSICS_PASSIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_PASSIV
 pub const ENTITY_PHYSICS_ACTIVE = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_ACTIVE;
 pub const ENTITY_PHYSICS_FIXED = ENTITY_PHYSICS_WORLD | ENTITY_COLLIDES_FIXED;
 
-pub const EntityBase = struct {
+pub const Entity = struct {
     /// A unique id for this entity, assigned on spawn
     id: u16,
     /// Determines if this entity is in use
@@ -117,69 +118,67 @@ pub const EntityBase = struct {
     min_slide_normal: f32 = 0,
     /// The animation that is automatically drawn
     anim: Anim = undefined,
+
+    entity: options.ENTITY_TYPE,
 };
 
 /// The EntityVtab struct must implemented by all your entity types. It holds
 /// the functions to call for each entity type. All of these are optional. In
 /// the simplest case you just have a global:
 /// entity_vtab_t entity_vtab_mytype = {};
-pub fn EntityVtab(comptime TEngine: type, comptime Entity: type) type {
-    return struct {
-        const engine = TEngine;
+pub const EntityVtab = struct {
+    /// Called once at program start, just before main_init(). Use this to
+    /// load assets and animations for your entity types.
+    load: *const fn () void = noopLoad,
 
-        /// Called once at program start, just before main_init(). Use this to
-        /// load assets and animations for your entity types.
-        load: *const fn () void = noopLoad,
+    /// Called once for each entity, when the entity is created through
+    /// entity_spawn(). Use this to set all properties (size, offset, animation)
+    /// of your entity.
+    init: *const fn (self: *Entity) void = noopInit,
 
-        /// Called once for each entity, when the entity is created through
-        /// entity_spawn(). Use this to set all properties (size, offset, animation)
-        /// of your entity.
-        init: *const fn (self: *Entity) void = noopInit,
+    /// Called once after engine_load_level() when all entities have been
+    /// spawned. The json_t *def contains the "settings" of the entity from the
+    /// level json.
+    settings: *const fn (self: *Entity, def: ObjectMap) void = noopSettings,
 
-        /// Called once after engine_load_level() when all entities have been
-        /// spawned. The json_t *def contains the "settings" of the entity from the
-        /// level json.
-        settings: *const fn (self: *Entity, def: ObjectMap) void = noopSettings,
+    /// Called once per frame for each entity. The default entity_update_base()
+    /// moves the entity according to its physics
+    update: *const fn (self: *Entity) void = Engine.entityBaseUpdate,
 
-        /// Called once per frame for each entity. The default entity_update_base()
-        /// moves the entity according to its physics
-        update: *const fn (self: *Entity) void = engine.entityBaseUpdate,
+    /// Called once per frame for each entity. The default entity_draw_base()
+    /// draws the entity->anim
+    draw: *const fn (self: *Entity, viewport: Vec2) void = Engine.entityBaseDraw,
 
-        /// Called once per frame for each entity. The default entity_draw_base()
-        /// draws the entity->anim
-        draw: *const fn (self: *Entity, viewport: Vec2) void = engine.entityBaseDraw,
+    /// Called when the entity is removed from the game through entity_kill()
+    kill: *const fn (self: *Entity) void = noopKill,
 
-        /// Called when the entity is removed from the game through entity_kill()
-        kill: *const fn (self: *Entity) void = noopKill,
+    /// Called when this entity touches another entity, according to
+    /// entity->check_against
+    touch: *const fn (self: *Entity, other: *Entity) void = noopTouch,
 
-        /// Called when this entity touches another entity, according to
-        /// entity->check_against
-        touch: *const fn (self: *Entity, other: *Entity) void = noopTouch,
+    /// Called when the entity collides with the game world or another entity
+    /// Careful: the trace will only be set from a game world collision. It will
+    /// be NULL for a collision with another entity.
+    collide: *const fn (self: *Entity, normal: Vec2, trace: ?Trace) void = noopCollide,
 
-        /// Called when the entity collides with the game world or another entity
-        /// Careful: the trace will only be set from a game world collision. It will
-        /// be NULL for a collision with another entity.
-        collide: *const fn (self: *Entity, normal: Vec2, trace: ?Trace) void = noopCollide,
+    /// Called through entity_damage(). The default entity_base_damage() deducts
+    /// damage from the entity's health and calls entity_kill() if it's <= 0.
+    damage: *const fn (self: *Entity, other: *Entity, damage: f32) void = Engine.entityBaseDamage,
 
-        /// Called through entity_damage(). The default entity_base_damage() deducts
-        /// damage from the entity's health and calls entity_kill() if it's <= 0.
-        damage: *const fn (self: *Entity, other: *Entity, damage: f32) void = engine.entityBaseDamage,
+    /// Called through entity_trigger()
+    trigger: *const fn (self: *Entity, other: *Entity) void = noopTrigger,
 
-        /// Called through entity_trigger()
-        trigger: *const fn (self: *Entity, other: *Entity) void = noopTrigger,
+    /// Called through entity_message()
+    message: *const fn (self: *Entity, message: ?*anyopaque, data: ?*anyopaque) void = noopMessage,
 
-        /// Called through entity_message()
-        message: *const fn (self: *Entity, message: ?*anyopaque, data: ?*anyopaque) void = noopMessage,
-
-        // zig fmt: off
-        fn noopLoad() void {}
-        fn noopInit(_: *Entity) void {  }
-        fn noopKill(_: *Entity) void {  }
-        fn noopSettings(_: *Entity, _: ObjectMap) void {}
-        fn noopTouch(_: *Entity, _: *Entity) void { }
-        fn noopCollide(_: *Entity, _: Vec2, _: ?Trace) void {}
-        fn noopTrigger(_: *Entity, _: *Entity) void {}
-        fn noopMessage(_: *Entity, _: ?*anyopaque, _: ?*anyopaque) void {}
-        // zig fmt: on
-    };
-}
+    // zig fmt: off
+    fn noopLoad() void {}
+    fn noopInit(_: *Entity) void {  }
+    fn noopKill(_: *Entity) void {  }
+    fn noopSettings(_: *Entity, _: ObjectMap) void {}
+    fn noopTouch(_: *Entity, _: *Entity) void { }
+    fn noopCollide(_: *Entity, _: Vec2, _: ?Trace) void {}
+    fn noopTrigger(_: *Entity, _: *Entity) void {}
+    fn noopMessage(_: *Entity, _: ?*anyopaque, _: ?*anyopaque) void {}
+    // zig fmt: on
+};

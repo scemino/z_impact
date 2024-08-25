@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const options = @import("options.zig").options;
 const types = @import("types.zig");
 const Vec2 = types.Vec2;
 const Vec2i = types.Vec2i;
@@ -7,8 +8,6 @@ const Rgba = types.Rgba;
 const sokol = @import("sokol");
 const sg = sokol.gfx;
 const sgl = sokol.gl;
-
-const RENDER_TEXTURES_MAX = 1024;
 
 pub const TextureMark = struct { index: usize = 0 };
 
@@ -44,7 +43,7 @@ pub const Texture = struct {
         img_data.subimage[0][0] = sg.asRange(pixels);
         sg.updateImage(img, img_data);
 
-        assert(textures_len < RENDER_TEXTURES_MAX);
+        assert(textures_len < options.RENDER_TEXTURES_MAX);
         textures[textures_len] = .{ .size = size, .img = img };
 
         const texture_handle = Texture{
@@ -61,7 +60,7 @@ const InternalTexture = struct {
     img: sg.Image,
 };
 
-var textures: [RENDER_TEXTURES_MAX]InternalTexture = undefined;
+var textures: [options.RENDER_TEXTURES_MAX]InternalTexture = undefined;
 
 pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
     const t = &textures[texture_handle.index];

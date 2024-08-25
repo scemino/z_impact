@@ -1,14 +1,9 @@
 const std = @import("std");
+const options = @import("options.zig").options;
 const types = @import("types");
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const assert = std.debug.assert;
-
-/// The maximum number of discrete actions
-const INPUT_ACTION_MAX = 32;
-
-/// The deadzone for input_capture()
-const INPUT_DEADZONE_CAPTURE = 0.5;
 
 /// Key and buttons names for input_bind()
 pub const Button = enum(u8) {
@@ -152,11 +147,6 @@ const INPUT_BUTTON_MAX: usize = 139;
 const INPUT_ACTION_NONE: u8 = 255;
 const INPUT_BUTTON_NONE: u8 = 0;
 
-/// The deadzone in the normalized 0..1 range in which button presses are
-/// ignored. This only takes effect for "analog" input, such as sticks on a game
-/// controller.
-const INPUT_DEADZONE: f32 = 0.1;
-
 var expected_button: [INPUT_BUTTON_MAX]u8 = [1]u8{0} ** INPUT_BUTTON_MAX;
 var actions_state: [INPUT_BUTTON_MAX]f32 = [1]f32{0} ** INPUT_BUTTON_MAX;
 var actions_pressed: [INPUT_BUTTON_MAX]bool = [1]bool{false} ** INPUT_BUTTON_MAX;
@@ -169,7 +159,7 @@ var mouse_y: i32 = 0;
 /// keys, this is either 0 or 1. For analog input, it is anywhere between
 /// 0..1.
 pub fn statef(action: u8) f32 {
-    assert(action < INPUT_ACTION_MAX); // "Invalid input action %d", action;
+    assert(action < options.INPUT_ACTION_MAX); // "Invalid input action %d", action;
     return actions_state[action];
 }
 
@@ -216,7 +206,7 @@ pub fn setButtonState(button: Button, s: f32) void {
 
     const expected = expected_button[action];
     if (expected == 0 or expected == @as(u8, @intCast(@intFromEnum(button)))) {
-        state = if (state > INPUT_DEADZONE) state else 0;
+        state = if (state > options.INPUT_DEADZONE) state else 0;
 
         if (state != 0 and actions_state[action] == 0) {
             actions_pressed[action] = true;
@@ -229,7 +219,7 @@ pub fn setButtonState(button: Button, s: f32) void {
     }
 
     if (capture_callback) |cb| {
-        if (state > INPUT_DEADZONE_CAPTURE) {
+        if (state > options.INPUT_DEADZONE_CAPTURE) {
             cb(capture_user, button, 0);
         }
     }

@@ -2,8 +2,7 @@ const std = @import("std");
 const zi = @import("zimpact");
 const game = @import("../game.zig");
 const g = @import("../global.zig");
-const ett = zi.entity;
-const Entity = game.Entity;
+const Entity = zi.Entity;
 const Image = zi.Image;
 const animDef = zi.animDef;
 const AnimDef = zi.AnimDef;
@@ -24,16 +23,16 @@ fn load() void {
 }
 
 fn init(self: *Entity) void {
-    self.base.anim = anim(&anim_idle);
-    self.base.size = vec2(6, 6);
-    self.base.offset = vec2(-1, -1);
+    self.anim = anim(&anim_idle);
+    self.size = vec2(6, 6);
+    self.offset = vec2(-1, -1);
 
-    self.base.check_against = ett.ENTITY_GROUP_PLAYER;
+    self.check_against = zi.entity.ENTITY_GROUP_PLAYER;
 }
 
 fn update(self: *Entity) void {
-    if ((self.base.pos.y - zi.engine.viewport.y) < -32) {
-        game.Engine.entityKill(self);
+    if ((self.pos.y - zi.engine.viewport.y) < -32) {
+        zi.Engine.entityKill(self);
     }
 }
 
@@ -41,10 +40,10 @@ fn touch(self: *Entity, other: *Entity) void {
     _ = other;
     g.score += 500;
     snd.play(sound_collect);
-    game.Engine.entityKill(self);
+    zi.Engine.entityKill(self);
 }
 
-pub const vtab: game.EntityVtab = .{
+pub const vtab: zi.EntityVtab = .{
     .load = load,
     .init = init,
     .update = update,

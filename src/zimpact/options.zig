@@ -9,6 +9,8 @@ pub const RENDER_RESIZE_WIDTH = 1;
 pub const RENDER_RESIZE_HEIGHT = 2;
 pub const RENDER_RESIZE_ANY = 3;
 
+pub const SweepAxis = enum { x, y };
+
 pub const Options = struct {
     /// The total size of the hunk
     ALLOC_SIZE: usize = 32 * 1024 * 1024,
@@ -37,6 +39,10 @@ pub const Options = struct {
     /// bounce. If this would be 0.0, entities would bounce indefinitely with ever
     /// smaller velocities.
     ENTITY_MIN_BOUNCE_VELOCITY: f32 = 10,
+
+    /// The axis (x or y) on which we want to do the broad phase collision detection
+    /// sweep & prune. For mosly horizontal games it should be x, for vertical ones y
+    ENTITY_SWEEP_AXIS: SweepAxis = .x,
 
     /// The axis (x or y) on which we want to do the broad phase collision detection
     /// sweep & prune. For mosly horizontal games it should be x, for vertical ones y

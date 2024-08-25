@@ -478,9 +478,9 @@ pub fn entitiesUpdate() void {
         if (e1.check_against != ENTITY_GROUP_NONE or
             e1.group != ENTITY_GROUP_NONE or (e1.physics > ENTITY_COLLIDES_LITE))
         {
-            const max_pos = e1.pos.x + e1.size.x;
+            const max_pos = sweepAxis(e1.pos) + sweepAxis(e1.size);
             var j: usize = i + 1;
-            while (j < len and engine.entities[j].pos.x < max_pos) {
+            while (j < len and sweepAxis(engine.entities[j].pos) < max_pos) {
                 const e2 = engine.entities[j];
                 engine.perf.checks += 1;
 
@@ -526,7 +526,7 @@ pub fn entitiesDraw(vp: Vec2) void {
     }
 }
 
-fn spawnByTypeName(comptime TKind: type, tag: TKind, pos: Vec2) ?*Entity {
+pub fn spawnByTypeName(comptime TKind: type, tag: TKind, pos: Vec2) ?*Entity {
     if (engine.entities_len >= options.ENTITIES_MAX) return null;
     const ent = engine.entities[engine.entities_len];
     engine.entities_len += 1;
@@ -552,7 +552,7 @@ fn spawnByTypeName(comptime TKind: type, tag: TKind, pos: Vec2) ?*Entity {
         .mass = 1,
         .size = vec2(8, 8),
         .entity = switch (tag) {
-            inline else => |t| @unionInit(options.T, @tagName(t), undefined),
+            inline else => |t| @unionInit(options.ENTITY_TYPE, @tagName(t), undefined),
         },
     };
 
@@ -634,7 +634,7 @@ pub fn entitiesByLocation(kind: anytype, pos: Vec2, radius: f32, exclude: *Entit
     var list = std.ArrayList(EntityRef).init(ba.allocator());
     defer list.deinit();
 
-    const start_pos = pos.x - radius;
+    const start_pos = sweepAxis(pos) - radius;
     const end_pos = start_pos + radius * 2;
 
     const radius_squared = radius * radius;
@@ -646,7 +646,7 @@ pub fn entitiesByLocation(kind: anytype, pos: Vec2, radius: f32, exclude: *Entit
     const search_pos: f32 = start_pos - options.ENTITY_MAX_SIZE;
     while (lower_bound <= upper_bound) {
         const current_index = (lower_bound + upper_bound) / 2;
-        const current_pos = engine.entities[current_index].pos.x;
+        const current_pos = sweepAxis(engine.entities[current_index].pos);
 
         if (current_pos < search_pos) {
             lower_bound = current_index + 1;
@@ -662,12 +662,12 @@ pub fn entitiesByLocation(kind: anytype, pos: Vec2, radius: f32, exclude: *Entit
         const entity = engine.entities[i];
 
         // Have we reached the end of the search range?
-        if (entity.pos.x > end_pos) {
+        if (sweepAxis(entity.pos) > end_pos) {
             break;
         }
 
         // Is this entity in the search range and has the right type?
-        if (entity.pos.x + entity.size.x >= start_pos and
+        if (sweepAxis(entity.pos) + sweepAxis(entity.size) >= start_pos and
             entity != exclude and
             (@as(u8, @intFromEnum(kind)) == 0 or entity.entity == kind) and
             entity.is_alive)
@@ -779,9 +779,13 @@ fn cmpEntity(context: void, lhs: *Entity, rhs: *Entity) bool {
     return lhs.draw_order <= rhs.draw_order;
 }
 
+inline fn sweepAxis(v: Vec2) f32 {
+    return if (options.ENTITY_SWEEP_AXIS == .x) v.x else v.y;
+}
+
 fn cmpEntityPos(context: void, a: *Entity, b: *Entity) bool {
     _ = context;
-    return a.pos.x <= b.pos.x;
+    return sweepAxis(a.pos) <= sweepAxis(b.pos);
 }
 
 fn contains(g1: u8, g2: u8) bool {

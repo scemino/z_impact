@@ -68,8 +68,8 @@ pub const Camera = struct {
     }
 
     // Advance the camera towards its target
-    pub fn update(cam: *Camera, eng: anytype) void {
-        if (eng.entityByRef(cam.follow_entity)) |entity_follow| {
+    pub fn update(cam: *Camera) void {
+        if (entity.entityByRef(cam.follow_entity)) |entity_follow| {
             const size = vec2(@min(entity_follow.size.x, cam.deadzone.x), @min(entity_follow.size.y, cam.deadzone.y));
 
             if (entity_follow.pos.x < cam.deadzone_pos.x) {
@@ -117,16 +117,16 @@ pub const Camera = struct {
     // Follow an entity. Set snap to true when you want to jump to it. The camera
     // will follow this target for as long as it's alive (or until following
     // another entity / unfollow)
-    pub fn follow(cam: *Camera, eng: anytype, f: EntityRef, snap: bool) void {
+    pub fn follow(cam: *Camera, f: EntityRef, snap: bool) void {
         cam.follow_entity = f;
         if (snap) {
-            cam.update(eng);
+            cam.update();
             engine.viewport = viewportTarget(cam);
         }
     }
 
     // Stop following the entity
     pub fn unfollow(cam: *Camera) void {
-        cam.follow = engine.entityRefNone();
+        cam.follow = entity.entityRefNone();
     }
 };

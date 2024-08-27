@@ -22,6 +22,9 @@ pub const zi_options = .{
     .ENTITIES_MAX = 64,
     .ENTITY_TYPE = game.UEntity,
     .RENDER_RESIZE_MODE = zi.options.RENDER_RESIZE_NONE,
+    .RENDER_SIZE = zi.vec2i(64, 96),
+    .WINDOW_TITLE = "Z Drop",
+    .WINDOW_SIZE = zi.vec2i(64, 96).muli(5),
 };
 
 fn init() void {
@@ -44,9 +47,6 @@ pub fn main() void {
 
     zi.Engine.run(.{
         .vtabs = &vtabs,
-        .window_title = "Z Drop",
-        .render_size = zi.vec2i(64, 96),
-        .window_size = zi.vec2i(64, 96).muli(5),
         .init = init,
     });
 }

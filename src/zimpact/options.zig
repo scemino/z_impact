@@ -1,4 +1,7 @@
 const root = @import("root");
+const types = @import("types.zig");
+const Vec2i = types.Vec2i;
+const vec2i = types.vec2i;
 
 pub const RENDER_SCALE_NONE = 0;
 pub const RENDER_SCALE_DISCRETE = 1;
@@ -81,18 +84,31 @@ pub const Options = struct {
     /// The maximum number of textures to be loaded at a time
     RENDER_TEXTURES_MAX: usize = 1024,
 
-    // The maximum number of sources to be loaded at a time. This only affects
-    // memory usage, but not performance.
+    /// The desired "logical size" or viewport size of the screen. This may be
+    /// different from the real pixel size. E.g. you can have a window with size of
+    /// 640x480 and a render size of 320x240. Note that, depending on the RESIZE_MODE
+    /// this logical size may also change when you resize the window.
+    RENDER_SIZE: Vec2i = vec2i(1280, 720),
+
+    /// The maximum number of sources to be loaded at a time. This only affects
+    /// memory usage, but not performance.
     SOUND_MAX_SOURCES: usize = 128,
 
-    // The maximum number of active nodes that can be mixed at time
+    /// The maximum number of active nodes that can be mixed at time
     SOUND_MAX_NODES: usize = 32,
 
-    // The maximum number of samples for which a sound source is decompressed
-    // completely at load time. Everything above this limit will be loaded into
-    // memory in compressed form and only decompressed on demand.
+    /// The maximum number of samples for which a sound source is decompressed
+    /// completely at load time. Everything above this limit will be loaded into
+    /// memory in compressed form and only decompressed on demand.
     SOUND_MAX_UNCOMPRESSED_SAMPLES: usize = (64 * 1024),
 
+    /// The window title, if applicable
+    WINDOW_TITLE: [*c]const u8 = "Z Impact Game",
+
+    /// The default window size, if applicable
+    WINDOW_SIZE: Vec2i = vec2i(1280, 720),
+
+    /// Mandatory: the type of the entity
     ENTITY_TYPE: type = undefined,
 };
 

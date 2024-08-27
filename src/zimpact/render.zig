@@ -27,6 +27,8 @@ var pip: sgl.Pipeline = .{};
 var pass_action: sg.PassAction = .{};
 pub var NO_TEXTURE: Texture = undefined;
 var blend_mode: BlendMode = .normal;
+var backbuffer_size: Vec2i = undefined;
+var window_size: Vec2i = undefined;
 
 pub const BlendMode = enum { normal, lighter };
 
@@ -36,8 +38,10 @@ pub const BlendMode = enum { normal, lighter };
 /// of functions.
 ///
 /// Called by the platform
-pub fn init(size: Vec2i) void {
-    logical_size = size;
+pub fn init() void {
+    logical_size = options.options.RENDER_SIZE;
+    backbuffer_size = options.options.RENDER_SIZE;
+    window_size = options.options.RENDER_SIZE;
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -78,14 +82,16 @@ pub fn cleanup() void {
 }
 
 pub fn framePrepare() void {
-    const dw = sapp.width();
-    const dh = sapp.height();
+    const dw = @as(f32, @floatFromInt(backbuffer_size.x));
+    const dh = @as(f32, @floatFromInt(backbuffer_size.y));
+    const dx = @as(f32, @floatFromInt(window_size.x - backbuffer_size.x)) / 2.0;
+    const dy = @as(f32, @floatFromInt(window_size.y - backbuffer_size.y)) / 2.0;
 
-    sgl.viewport(0, 0, dw, dh, true);
+    sgl.viewportf(dx, dy, dw, dh, true);
     sgl.defaults();
     sgl.loadPipeline(pip);
     sgl.matrixModeProjection();
-    sgl.ortho(0, @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(logical_size.y)), 0.0, -1, 1);
+    sgl.ortho(0, @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(logical_size.y)), 0, -1, 1);
     sgl.matrixModeModelview();
     sgl.loadIdentity();
 }
@@ -167,12 +173,15 @@ pub fn snapPx(pos: Vec2) Vec2 {
 
 /// Resize the logical size according to the available window size and the scale
 /// and resize mode
-pub fn resize(avaiable_size: Vec2i) void {
+pub fn resize(available_size: Vec2i) void {
     // Determine Zoom
     if (options.options.RENDER_SCALE_MODE == options.RENDER_SCALE_NONE) {
         screen_scale = 1;
     } else {
-        screen_scale = @min(@as(f32, @floatFromInt(avaiable_size.x)) / @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(avaiable_size.y)) / @as(f32, @floatFromInt(logical_size.y)));
+        screen_scale = @min(
+            @as(f32, @floatFromInt(available_size.x)) / @as(f32, @floatFromInt(options.options.RENDER_SIZE.x)),
+            @as(f32, @floatFromInt(available_size.y)) / @as(f32, @floatFromInt(options.options.RENDER_SIZE.y)),
+        );
 
         if (options.options.RENDER_SCALE_MODE == options.RENDER_SCALE_DISCRETE) {
             screen_scale = @max(@floor(screen_scale), 0.5);
@@ -181,20 +190,22 @@ pub fn resize(avaiable_size: Vec2i) void {
 
     // Determine size
     if ((options.options.RENDER_RESIZE_MODE & options.RENDER_RESIZE_WIDTH) != 0) {
-        screen_size.x = @max(avaiable_size.x, logical_size.x);
+        screen_size.x = @max(available_size.x, options.options.RENDER_SIZE.x);
     } else {
-        screen_size.x = @as(i32, @intCast(logical_size.x)) * @as(i32, @intFromFloat(screen_scale));
+        screen_size.x = @as(i32, @intCast(options.options.RENDER_SIZE.x)) * @as(i32, @intFromFloat(screen_scale));
     }
 
     if ((options.options.RENDER_RESIZE_MODE & options.RENDER_RESIZE_HEIGHT) != 0) {
-        screen_size.y = @max(avaiable_size.y, logical_size.y);
+        screen_size.y = @max(available_size.y, options.options.RENDER_SIZE.y);
     } else {
-        screen_size.y = @as(i32, @intCast(logical_size.y)) * @as(i32, @intFromFloat(screen_scale));
+        screen_size.y = @as(i32, @intCast(options.options.RENDER_SIZE.y)) * @as(i32, @intFromFloat(screen_scale));
     }
 
     logical_size.x = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.x)) / screen_scale));
     logical_size.y = @intFromFloat(@ceil(@as(f32, @floatFromInt(screen_size.y)) / screen_scale));
     inv_screen_scale = 1.0 / screen_scale;
+    backbuffer_size = screen_size;
+    window_size = available_size;
 }
 
 pub fn setBlendMode(new_mode: BlendMode) void {

@@ -1,5 +1,12 @@
 const std = @import("std");
 
+/// Safe version of the clamp
+pub fn clamp(clamped_val: anytype, bound_1: anytype, bound_2: anytype) @TypeOf(clamped_val, bound_1, bound_2) {
+    const upper_bound = @max(bound_1, bound_2);
+    const lower_bound = @min(bound_1, bound_2);
+    return @min(upper_bound, @max(clamped_val, lower_bound));
+}
+
 /// Scales v from the input range to the output range. This is useful for all
 /// kinds of transitions. E.g. to move an image in from the right side of the
 /// screen to the center over 2 second, starting at the 3 second:

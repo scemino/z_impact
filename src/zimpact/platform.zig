@@ -15,6 +15,7 @@ const TempAllocator = @import("allocator.zig").TempAllocator;
 const input = @import("input.zig");
 const render = @import("render.zig");
 const alloc = @import("allocator.zig");
+const options = @import("options.zig");
 const Button = input.Button;
 
 var platform_output_samplerate: u32 = 44100;
@@ -304,7 +305,6 @@ pub const Desc = struct {
     update_cb: ?*const fn () void = null,
     init_cb: ?*const fn () void = null,
     cleanup_cb: ?*const fn () void = null,
-    window_title: ?[:0]const u8 = null,
     window_size: Vec2i = types.vec2i(1280, 720),
 };
 
@@ -318,8 +318,8 @@ pub fn run(d: Desc) void {
         .frame_cb = app_update,
         .cleanup_cb = app_cleanup,
         .event_cb = &platformHandleEvent,
-        .window_title = d.window_title orelse "Z Impact Game",
-        .width = d.window_size.x,
-        .height = d.window_size.y,
+        .window_title = options.options.WINDOW_TITLE,
+        .width = options.options.WINDOW_SIZE.x,
+        .height = options.options.WINDOW_SIZE.y,
     });
 }

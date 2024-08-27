@@ -45,10 +45,7 @@ const EntitySettings = struct {
 
 const Desc = struct {
     vtabs: []const EntityVtab,
-    render_size: Vec2i,
     init: ?*const fn () void = null,
-    window_title: ?[:0]const u8 = null,
-    window_size: Vec2i = types.vec2i(1280, 720),
 };
 
 /// The game time in seconds since scene start
@@ -108,19 +105,15 @@ pub var entity_unique_id: u16 = 0;
 pub const Engine = struct {
     const Self = @This();
 
-    var render_size: Vec2i = undefined;
     var main_init: ?*const fn () void = null;
 
     pub fn run(desc: Desc) void {
         entity_vtab = desc.vtabs;
-        render_size = desc.render_size;
         main_init = desc.init;
         platform.run(.{
             .init_cb = engineInit,
             .cleanup_cb = cleanup,
             .update_cb = update,
-            .window_title = desc.window_title,
-            .window_size = desc.window_size,
         });
     }
 
@@ -258,7 +251,7 @@ pub const Engine = struct {
     }
 
     fn renderInit(avaiable_size: Vec2i) void {
-        render.init(render_size);
+        render.init();
         render.resize(avaiable_size);
     }
 

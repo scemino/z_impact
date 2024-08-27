@@ -178,34 +178,36 @@ pub const Map = struct {
 
         const offset = off.divf(self.distance);
         const rs = render.renderSize();
+        const rsf = types.fromVec2i(render.renderSize());
         const ts = self.tile_size;
+        const tsf: f32 = @floatFromInt(ts);
 
         if (self.repeat) {
             const tile_offset = types.fromVec2(offset).divi(ts);
-            const px_offset = vec2(@mod(offset.x, @as(f32, @floatFromInt(ts))), @mod(offset.y, @as(f32, @floatFromInt(ts))));
-            const px_min = vec2(-px_offset.x - @as(f32, @floatFromInt(ts)), -px_offset.y - @as(f32, @floatFromInt(ts)));
-            const px_max = vec2(-px_offset.x + @as(f32, @floatFromInt(rs.x)) + @as(f32, @floatFromInt(ts)), -px_offset.y + @as(f32, @floatFromInt(rs.y)) + @as(f32, @floatFromInt(ts)));
+            const px_offset = vec2(@mod(offset.x, tsf), @mod(offset.y, tsf));
+            const px_min = vec2(-px_offset.x - tsf, -px_offset.y - tsf);
+            const px_max = vec2(-px_offset.x + rsf.x + tsf, -px_offset.y + rsf.y + tsf);
 
             var pos = px_min;
-            var self_y: i32 = -1;
+            var map_y: i32 = -1;
             while (pos.y < px_max.y) {
-                const y = @mod(@mod((self_y + tile_offset.y), self.size.y) + self.size.y, self.size.y);
+                const y: i32 = @mod(@mod((map_y + tile_offset.y), self.size.y) + self.size.y, self.size.y);
 
                 pos.x = px_min.x;
-                var self_x: i32 = -1;
+                var map_x: i32 = -1;
                 while (pos.x < px_max.x) {
-                    const x = @mod(@mod((self_x + tile_offset.x), self.size.x) + self.size.x, self.size.x);
+                    const x: i32 = @mod(@mod((map_x + tile_offset.x), self.size.x) + self.size.x, self.size.x);
 
-                    const tile = self.data[@intCast(y * self.size.x + x)];
+                    const tile: u16 = self.data[@intCast(y * self.size.x + x)];
 
-                    if (tile > 0) {
+                    if (tile != 0) {
                         self.drawTile(tile - 1, pos);
                     }
-                    self_x += 1;
-                    pos.x += @floatFromInt(ts);
+                    map_x += 1;
+                    pos.x += tsf;
                 }
-                self_y += 1;
-                pos.y += @floatFromInt(ts);
+                map_y += 1;
+                pos.y += tsf;
             }
         } else {
             const tile_min = vec2i(@max(0, @divFloor(@as(i32, @intFromFloat(offset.x)), ts)), @max(0, @divFloor(@as(i32, @intFromFloat(offset.y)), ts)));

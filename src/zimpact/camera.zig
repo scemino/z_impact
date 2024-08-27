@@ -3,6 +3,7 @@ const types = @import("types.zig");
 const entity = @import("entity.zig");
 const render = @import("render.zig");
 const engine = @import("engine.zig");
+const utils = @import("utils.zig");
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const EntityRef = entity.EntityRef;
@@ -61,8 +62,8 @@ pub const Camera = struct {
 
         if (engine.collision_map) |map| {
             const bounds = fromVec2i(map.size.muli(map.tile_size));
-            viewport_target.x = std.math.clamp(viewport_target.x, 0, bounds.x - screen_size.x);
-            viewport_target.y = std.math.clamp(viewport_target.y, 0, bounds.y - screen_size.y);
+            viewport_target.x = utils.clamp(viewport_target.x, 0, bounds.x - screen_size.x);
+            viewport_target.y = utils.clamp(viewport_target.y, 0, bounds.y - screen_size.y);
         }
         return viewport_target;
     }

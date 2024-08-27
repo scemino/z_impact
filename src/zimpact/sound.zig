@@ -88,7 +88,8 @@ pub fn source(path: []const u8) *SoundSource {
     src.samplerate = frame_header.sample_rate;
 
     const audio = qoa.decode(ba.allocator(), data) catch @panic("failed to decode audio");
-    src.pcm_samples = ba.allocator().dupe(i16, audio.samples) catch @panic("failed to decode audio");
+    src.pcm_samples = audio.samples;
+    src.len = @intCast(audio.samples.len / frame_header.channels);
 
     // TODO: streaming
 
@@ -204,7 +205,7 @@ pub fn reset(mrk: SoundMark) void {
     // Reset all nodes whose sources are invalidated
     for (&sound_nodes) |*node| {
         const src: usize = @intFromPtr(node.source);
-        if ((src != 0) and ((src - @intFromPtr(&sources[0])) >= mrk.index)) {
+        if ((src != 0) and ((src - @intFromPtr(&sources[0])) >= (mrk.index * @sizeOf(SoundSource)))) {
             node.id = 0;
             node.is_playing = false;
             node.is_halted = false;

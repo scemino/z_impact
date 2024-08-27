@@ -35,4 +35,5 @@ pub const Scene = @import("scene.zig").Scene;
 pub const cam = @import("camera.zig");
 pub const camera_t = @import("camera.zig").Camera;
 pub const noise = @import("noise.zig");
+pub const alloc = @import("allocator.zig");
 pub const Noise = noise.Noise;

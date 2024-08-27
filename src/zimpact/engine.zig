@@ -277,8 +277,8 @@ pub const Engine = struct {
     /// Load a level (background maps, collision map and entities) from a json path.
     /// This should only be called from within your scenes init() function.
     pub fn loadLevel(comptime TKind: type, json_path: []const u8) void {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const json = platform.loadAssetJson(json_path, gpa.allocator());
+        var ba = alloc.BumpAllocator{};
+        const json = platform.loadAssetJson(json_path, ba.allocator());
         defer json.deinit();
 
         ett.entitiesReset();
@@ -302,7 +302,7 @@ pub const Engine = struct {
         // Remember all entities with settings; we want to apply these settings
         // only after all entities have been spawned.
         // FIXME: we do this on the stack. Should maybe use the temp alloc instead.
-        var entity_settings = gpa.allocator().alloc(EntitySettings, entities.len) catch @panic("error when allcoating settings");
+        var entity_settings = ba.allocator().alloc(EntitySettings, entities.len) catch @panic("error when allcoating settings");
         var entity_settings_len: usize = 0;
 
         for (etts.?.array.items) |def| {

@@ -71,11 +71,10 @@ pub const Map = struct {
     /// 	]
     /// }
     pub fn initFromJson(root: Value) *Map {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
         assert(!engine.is_running);
 
-        var map: *Map = gpa.allocator().create(Map) catch @panic("failed to allocate map");
+        var ba = alloc.BumpAllocator{};
+        var map: *Map = ba.allocator().create(Map) catch @panic("failed to allocate map");
         map.anims = null;
         map.size = vec2i(getInt(i32, root.object, "width"), getInt(i32, root.object, "height"));
         map.tile_size = getInt(u16, root.object, "tilesize");
@@ -102,7 +101,7 @@ pub const Map = struct {
         switch (root.object.get("data").?) {
             .array => |data| {
                 assert(data.items.len == map.size.y); // Map data height is %d expected %d", data.len, map.size.y
-                map.data = gpa.allocator().alloc(u16, @intCast(map.size.x * map.size.y)) catch @panic("error when allocating data map");
+                map.data = ba.allocator().alloc(u16, @intCast(map.size.x * map.size.y)) catch @panic("error when allocating data map");
                 var index: usize = 0;
                 for (data.items) |row| {
                     for (row.array.items) |r| {

@@ -14,10 +14,12 @@ const Parsed = std.json.Parsed;
 const TempAllocator = @import("allocator.zig").TempAllocator;
 const input = @import("input.zig");
 const render = @import("render.zig");
+const alloc = @import("allocator.zig");
 const Button = input.Button;
 
 var platform_output_samplerate: u32 = 44100;
 var audio_callback: ?*const fn (buffer: []f32) void = null;
+var bin_dir: std.fs.Dir = undefined;
 
 const keyboard_map: [349]Button = keyboard_map_init();
 
@@ -157,6 +159,12 @@ fn init() void {
 
     // Might be different from requested rate
     platform_output_samplerate = @intCast(saudio.sampleRate());
+
+    // get the binary directory where the executable is located, it will be used to load assets from this directory
+    var ba = alloc.BumpAllocator{};
+    const exe_path = std.fs.selfExePathAlloc(ba.allocator()) catch @panic("failed to get exe path");
+    defer ba.allocator().free(exe_path);
+    bin_dir = std.fs.cwd().openDir(std.fs.path.dirname(exe_path).?, .{}) catch @panic("failed open bin dir");
 }
 
 /// Return the current time in seconds since program start
@@ -176,7 +184,7 @@ pub fn samplerate() u32 {
 
 /// Load a file into temp memory. Must be freed via temp_free()
 pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
-    var file = std.fs.cwd().openFile(name, .{}) catch @panic("failed to load asset");
+    var file = bin_dir.openFile(name, .{}) catch @panic("failed to load asset");
     defer file.close();
 
     const reader = file.reader();
@@ -215,6 +223,10 @@ pub fn setFullscreen(fullscreen: bool) void {
 /// Whether the program is in fullscreen mode
 pub fn getFullscreen() bool {
     return sapp.isFullscreen();
+}
+
+pub fn getBaseDir() std.fs.Dir {
+    return bin_dir;
 }
 
 pub export fn platformHandleEvent(ev: [*c]const sapp.Event) void {
@@ -284,6 +296,7 @@ export fn app_update() void {
 }
 
 export fn app_cleanup() void {
+    bin_dir.close();
     desc.cleanup_cb.?();
 }
 

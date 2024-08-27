@@ -95,14 +95,13 @@ const FontAlign = enum {
 
 /// Create a font with the given path to the image and path to the width_map.json
 pub fn font(path: []const u8, definition_path: []const u8) *Font {
-    var ba = std.heap.GeneralPurposeAllocator(.{}){};
+    var ba = alloc.BumpAllocator{};
     var fnt = ba.allocator().create(Font) catch @panic("failed to alloc font");
     fnt.image = Image.init(path) catch @panic("failed to alloc font image");
     fnt.letter_spacing = 0;
     fnt.color = types.white();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const def = platform.loadAssetJson(definition_path, gpa.allocator());
+    const def = platform.loadAssetJson(definition_path, ba.allocator());
     defer def.deinit();
     const obj = def.value.object;
     // error_if(def == NULL, "Couldn't load fnt definition json");

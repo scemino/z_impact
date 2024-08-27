@@ -11,6 +11,7 @@ const TempAllocator = @import("allocator.zig").TempAllocator;
 const bumpAlloc = @import("allocator.zig").bumpAlloc;
 const render = @import("render.zig");
 const ziengine = @import("engine.zig");
+const platform = @import("platform.zig");
 const options = @import("options.zig").options;
 
 var image_paths: [options.IMAGE_MAX_SOURCES][]u8 = undefined;
@@ -44,7 +45,7 @@ pub const Image = struct {
         image_paths[images_len] = try bumpAlloc(u8, path.len);
         @memcpy(image_paths[images_len], path);
 
-        var file = try std.fs.cwd().openFile(path, .{});
+        var file = try platform.getBaseDir().openFile(path, .{});
         defer file.close();
 
         var temp_alloc = TempAllocator{};

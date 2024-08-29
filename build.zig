@@ -1,5 +1,6 @@
 const std = @import("std");
 const sokol = @import("sokol");
+
 const Child = std.process.Child;
 var mod_zi: *std.Build.Module = undefined;
 
@@ -8,6 +9,18 @@ var assets_step: *std.Build.Step = undefined;
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const dep_sokol = b.dependency("sokol", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    mod_zi = b.addModule("zimpact", .{
+        .root_source_file = b.path("src/zimpact/zimpact.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mod_zi.addImport("sokol", dep_sokol.module("sokol"));
 
     // build lib
     const lib = b.addStaticLibrary(.{
@@ -60,76 +73,65 @@ pub fn build(b: *std.Build) !void {
     assets_step.dependOn(qoaconv_step);
 
     const asset_dir = "samples/zdrop/assets";
-    const dir = try std.fs.cwd().openDir(asset_dir, .{ .iterate = true });
-    var walker = try dir.walk(b.allocator);
-    defer walker.deinit();
+    if (std.fs.cwd().openDir(asset_dir, .{ .iterate = true })) |dir| {
+        var walker = try dir.walk(b.allocator);
+        defer walker.deinit();
 
-    while (try walker.next()) |assets_file| {
-        switch (assets_file.kind) {
-            .directory => {},
-            .file => {
-                const ext = std.fs.path.extension(assets_file.path);
-                const file = std.fs.path.stem(assets_file.basename);
+        while (try walker.next()) |assets_file| {
+            switch (assets_file.kind) {
+                .directory => {},
+                .file => {
+                    const ext = std.fs.path.extension(assets_file.path);
+                    const file = std.fs.path.stem(assets_file.basename);
 
-                const input = b.fmt("{s}/{s}", .{ asset_dir, assets_file.path });
-                const out_dir = std.fs.path.dirname(assets_file.path);
-                if (std.mem.eql(u8, ext, ".png")) {
-                    // convert .png to .qoi
-                    const output = if (out_dir) |d| b.fmt("assets/{s}/{s}.qoi", .{ d, file }) else b.fmt("assets/{s}.qoi", .{file});
-                    assets_step.dependOn(&convert(b, qoiconv_exe, input, output).step);
-                } else if (std.mem.eql(u8, ext, ".wav")) {
-                    // convert .wav to .qoa
-                    const output = if (out_dir) |d| b.fmt("assets/{s}/{s}.qoa", .{ d, file }) else b.fmt("assets/{s}.qoa", .{file});
-                    assets_step.dependOn(&convert(b, qoaconv_exe, input, output).step);
-                } else {
-                    // just copy the asset
-                    const output = if (out_dir) |d| b.fmt("assets/{s}/{s}{s}", .{ d, file, ext }) else b.fmt("assets/{s}{s}", .{ file, ext });
-                    assets_step.dependOn(&b.addInstallFileWithDir(b.path(input), .bin, output).step);
-                }
-            },
-            else => {},
-        }
-    }
-
-    // build Z Drop sample
-    const dep_sokol = b.dependency("sokol", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    mod_zi = b.addModule("zimpact", .{
-        .root_source_file = b.path("src/zimpact/zimpact.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    mod_zi.addImport("sokol", dep_sokol.module("sokol"));
-
-    const sample: []const u8 = "zdrop";
-
-    if (!target.result.isWasm()) {
-        const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
-        // for native platforms, build into a regular executable
-        const exe = b.addExecutable(.{
-            .name = sample,
-            .root_source_file = b.path(b.fmt("samples/{s}/main.zig", .{sample})),
-            .target = target,
-            .optimize = optimize,
-        });
-        exe.root_module.addImport("zimpact", mod_zi);
-        exe.root_module.addImport("sokol", dep_sokol.module("sokol"));
-
-        const run_cmd = b.addRunArtifact(exe);
-        run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
-
-        if (b.args) |args| {
-            run_cmd.addArgs(args);
+                    const input = b.fmt("{s}/{s}", .{ asset_dir, assets_file.path });
+                    const out_dir = std.fs.path.dirname(assets_file.path);
+                    if (std.mem.eql(u8, ext, ".png")) {
+                        // convert .png to .qoi
+                        const output = if (out_dir) |d| b.fmt("assets/{s}/{s}.qoi", .{ d, file }) else b.fmt("assets/{s}.qoi", .{file});
+                        assets_step.dependOn(&convert(b, qoiconv_exe, input, output).step);
+                    } else if (std.mem.eql(u8, ext, ".wav")) {
+                        // convert .wav to .qoa
+                        const output = if (out_dir) |d| b.fmt("assets/{s}/{s}.qoa", .{ d, file }) else b.fmt("assets/{s}.qoa", .{file});
+                        assets_step.dependOn(&convert(b, qoaconv_exe, input, output).step);
+                    } else {
+                        // just copy the asset
+                        const output = if (out_dir) |d| b.fmt("assets/{s}/{s}{s}", .{ d, file, ext }) else b.fmt("assets/{s}{s}", .{ file, ext });
+                        assets_step.dependOn(&b.addInstallFileWithDir(b.path(input), .bin, output).step);
+                    }
+                },
+                else => {},
+            }
         }
 
-        run_step.dependOn(assets_step);
-        run_step.dependOn(&run_cmd.step);
-    } else {
-        try buildWeb(b, target, optimize, dep_sokol);
-    }
+        // build Z Drop sample
+        const sample: []const u8 = "zdrop";
+
+        if (!target.result.isWasm()) {
+            const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
+            // for native platforms, build into a regular executable
+            const exe = b.addExecutable(.{
+                .name = sample,
+                .root_source_file = b.path(b.fmt("samples/{s}/main.zig", .{sample})),
+                .target = target,
+                .optimize = optimize,
+            });
+            exe.root_module.addImport("zimpact", mod_zi);
+            exe.root_module.addImport("sokol", dep_sokol.module("sokol"));
+
+            const run_cmd = b.addRunArtifact(exe);
+            run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
+
+            if (b.args) |args| {
+                run_cmd.addArgs(args);
+            }
+
+            run_step.dependOn(assets_step);
+            run_step.dependOn(&run_cmd.step);
+        } else {
+            try buildWeb(b, target, optimize, dep_sokol);
+        }
+    } else |_| {}
 }
 
 fn convert(b: *std.Build, tool: *std.Build.Step.Compile, input: []const u8, output: []const u8) *std.Build.Step.InstallFile {

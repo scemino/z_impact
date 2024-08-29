@@ -39,7 +39,7 @@ randomly generated levels
 
 To compile and run the sample game Drop
 
-### Linux/Windows/macOS/
+### Linux/Windows/macOS
 
 ```shell
 zig build run

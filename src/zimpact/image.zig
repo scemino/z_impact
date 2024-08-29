@@ -45,14 +45,8 @@ pub const Image = struct {
         image_paths[images_len] = try bumpAlloc(u8, path.len);
         @memcpy(image_paths[images_len], path);
 
-        var file = try platform.getBaseDir().openFile(path, .{});
-        defer file.close();
-
         var temp_alloc = TempAllocator{};
-        const reader = file.reader();
-        const file_size = (try file.stat()).size;
-        const buf = try temp_alloc.allocator().alloc(u8, file_size);
-        _ = try reader.readAll(buf);
+        const buf = platform.loadAsset(path, temp_alloc.allocator());
         defer temp_alloc.allocator().free(buf);
 
         var img = try qoi.decodeBuffer(temp_alloc.allocator(), buf);

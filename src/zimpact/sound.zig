@@ -384,7 +384,7 @@ pub fn mixStereo(dest_samples: []f32) void {
             // 	src_samples = source.qoa.pcm_buffer;
             // }
 
-            const c: u6 = if (src.channels == 2) 1 else 0;
+            const c: u5 = if (src.channels == 2) 1 else 0;
 
             var di: usize = 0;
             while (di < dest_samples.len) {

@@ -22,7 +22,7 @@ adhere to a structure, in code and file layout, that is prescribed by the
 engine. You do not call Z impact, Z impact _calls you_.
 
 Games made with Z impact can be compiled for Linux, macOS, Windows (through 
-the usual hoops). There are currently only one "platform 
+the usual hoops) and for the web with WASM. There are currently only one "platform 
 backend": Sokol and one renderer by OS: OpenGL (Linux), Metal (mac OS), Direct-X (Windows).
 
 Z impact is a port of the orginal game engine [high_impact](https://github.com/phoboslab/high_impact/tree/master) made by phoboslab.
@@ -38,8 +38,17 @@ randomly generated levels
 ## Compiling
 
 To compile and run the sample game Drop
+
+### Linux/Windows/macOS/
+
 ```shell
-zig build run-zdrop
+zig build run
+```
+
+### Emscripten
+
+```shell
+zig build -Dtarget=wasm32-emscripten run 
 ```
 
 ## Documentation

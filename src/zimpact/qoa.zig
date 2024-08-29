@@ -128,7 +128,7 @@ pub fn decodeFrame(reader: anytype, header: FrameHeader, lms: *[max_channels]LMS
             while (si < slice_end) : (si += header.channels) {
                 const predicted = lms[c].predict();
                 const quantized = (slice >> 57) & 0x7;
-                const dequantized = dequant_table[scalefactor][quantized];
+                const dequantized = dequant_table[@intCast(scalefactor)][@intCast(quantized)];
                 const reconstructed: i16 = @intCast(std.math.clamp(predicted + dequantized, std.math.minInt(i16), std.math.maxInt(i16)));
 
                 sample_data[si] = reconstructed;

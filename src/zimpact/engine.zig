@@ -3,7 +3,6 @@ const assert = std.debug.assert;
 const Vec2 = @import("types.zig").Vec2;
 const Vec2i = @import("types.zig").Vec2i;
 const vec2 = @import("types.zig").vec2;
-const shaders = @import("shaders.zig");
 const types = @import("types.zig");
 const Rgba = @import("types.zig").Rgba;
 const alloc = @import("allocator.zig");
@@ -269,7 +268,7 @@ pub const Engine = struct {
 
     /// Load a level (background maps, collision map and entities) from a json path.
     /// This should only be called from within your scenes init() function.
-    pub fn loadLevel(comptime TKind: type, json_path: []const u8) void {
+    pub fn loadLevel(json_path: []const u8) void {
         var ba = alloc.BumpAllocator{};
         const json = platform.loadAssetJson(json_path, ba.allocator());
         defer json.deinit();
@@ -302,7 +301,8 @@ pub const Engine = struct {
             const type_name = def.object.get("type").?.string;
             assert(type_name.len > 0); // "Entity has no type"
 
-            const kind = std.meta.stringToEnum(TKind, type_name);
+            const kind_type = std.meta.Tag(options.ENTITY_TYPE);
+            const kind = std.meta.stringToEnum(kind_type, type_name);
             if (kind == null) {
                 std.log.warn("Entity {s} not found", .{type_name});
                 continue;
@@ -310,7 +310,7 @@ pub const Engine = struct {
 
             const pos = vec2(@as(f32, @floatFromInt(def.object.get("x").?.integer)), @as(f32, @floatFromInt(def.object.get("y").?.integer)));
 
-            if (ett.spawnByTypeName(TKind, kind.?, pos)) |ent| {
+            if (ett.spawnByTypeName(kind_type, kind.?, pos)) |ent| {
                 const settings = def.object.get("settings");
                 if (settings) |s| {
                     switch (s) {

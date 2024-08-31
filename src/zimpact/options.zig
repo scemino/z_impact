@@ -84,6 +84,11 @@ pub const Options = struct {
     /// The maximum number of textures to be loaded at a time
     RENDER_TEXTURES_MAX: usize = 1024,
 
+    /// The maximum size of the transform stack, when using render.push()
+    RENDER_TRANSFORM_STACK_SIZE: usize = 16,
+
+    RENDER_BUFFER_CAPACITY: usize = 2048,
+
     /// The desired "logical size" or viewport size of the screen. This may be
     /// different from the real pixel size. E.g. you can have a window with size of
     /// 640x480 and a render size of 320x240. Note that, depending on the RESIZE_MODE

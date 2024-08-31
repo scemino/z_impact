@@ -20,6 +20,10 @@ pub const Vec2 = struct {
         return .{ .x = a.x * b.x, .y = a.y * b.y };
     }
 
+    pub fn div(a: Vec2, b: Vec2) Vec2 {
+        return .{ .x = a.x / b.x, .y = a.y / b.y };
+    }
+
     pub fn mulf(a: Vec2, f: f32) Vec2 {
         return .{ .x = a.x * f, .y = a.y * f };
     }
@@ -51,6 +55,10 @@ pub const Vec2 = struct {
     pub fn angle(a: Vec2, b: Vec2) f32 {
         const d = b.sub(a);
         return std.math.atan2(d.y, d.x);
+    }
+
+    pub fn transform(v: Vec2, m: Mat3) Vec2 {
+        return vec2(m.a * v.x + m.b * v.y + m.tx, m.c * v.x + m.d * v.y + m.ty);
     }
 };
 
@@ -87,7 +95,40 @@ pub fn fromVec2(v: Vec2) Vec2i {
     return .{ .x = @intFromFloat(v.x), .y = @intFromFloat(v.y) };
 }
 
-pub const Mat3 = struct { a: f32, b: f32, c: f32, d: f32, tx: f32, ty: f32 };
+pub const Mat3 = struct {
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
+    tx: f32,
+    ty: f32,
+
+    pub fn translate(m: *Mat3, t: Vec2) void {
+        m.tx += m.a * t.x + m.c * t.y;
+        m.ty += m.b * t.x + m.d * t.y;
+    }
+
+    pub fn scale(m: *Mat3, r: Vec2) void {
+        m.a *= r.x;
+        m.b *= r.x;
+        m.c *= r.y;
+        m.d *= r.y;
+    }
+
+    pub fn rotate(m: *Mat3, r: f32) void {
+        const sn = std.math.sin(r);
+        const cs = std.math.cos(r);
+        const a = m.a;
+        const b = m.b;
+        const c = m.c;
+        const d = m.d;
+
+        m.a = a * cs + c * sn;
+        m.b = b * cs + d * sn;
+        m.c = c * cs - a * sn;
+        m.d = d * cs - b * sn;
+    }
+};
 
 pub const Rgba = struct {
     components: [4]u8,

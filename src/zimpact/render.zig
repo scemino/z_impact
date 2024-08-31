@@ -2,33 +2,50 @@ const std = @import("std");
 const assert = std.debug.assert;
 const Rgba = types.Rgba;
 const types = @import("types.zig");
-const drawQuad = @import("texture.zig").drawQuad;
+const texture = @import("texture.zig");
 const Texture = @import("texture.zig").Texture;
+const Quad = @import("texture.zig").Quad;
+const Vertex = @import("texture.zig").Vertex;
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const Vec2i = types.Vec2i;
 const vec2i = types.vec2i;
+const fromVec2i = types.fromVec2i;
+const Mat3 = types.Mat3;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
-const sgl = sokol.gl;
 const sglue = sokol.glue;
 const options = @import("options.zig");
+const shd = @import("shaders.zig");
 
-var logical_size: Vec2i = types.vec2i(64, 96);
+var logical_size: Vec2i = undefined;
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
 var inv_screen_scale: f32 = 1.0;
-var screen_size: Vec2i = types.vec2i(0, 0);
-var pip_normal: sgl.Pipeline = .{};
-var pip_lighter: sgl.Pipeline = .{};
-var pip: sgl.Pipeline = .{};
+var screen_size: Vec2i = undefined;
+
+var pip_normal: sg.Pipeline = .{};
+var pip_lighter: sg.Pipeline = .{};
+var pip: sg.Pipeline = .{};
 var pass_action: sg.PassAction = .{};
+var bindings: sg.Bindings = undefined;
+var shader: sg.Shader = .{};
+
 pub var NO_TEXTURE: Texture = undefined;
 var blend_mode: BlendMode = .normal;
 var backbuffer_size: Vec2i = undefined;
 var window_size: Vec2i = undefined;
+var transform_stack: [options.options.RENDER_TRANSFORM_STACK_SIZE]Mat3 = undefined;
+var transform_stack_index: usize = 0;
+
+var quad_buffer: [options.options.RENDER_BUFFER_CAPACITY * 4]Vertex = undefined;
+var index_buffer: [options.options.RENDER_BUFFER_CAPACITY * 6]u16 = undefined;
+var tex_buffer: [options.options.RENDER_BUFFER_CAPACITY]sg.Image = undefined;
+var quad_buffer_len: usize = 0;
+var index_buffer_len: usize = 0;
+var tex_buffer_len: usize = 0;
 
 pub const BlendMode = enum { normal, lighter };
 
@@ -46,28 +63,58 @@ pub fn init() void {
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
     });
-    // setup sokol-gl
-    sgl.setup(.{ .logger = .{ .func = slog.func } });
-    // default pass action
-    pass_action.colors[0] = .{
-        .load_action = sg.LoadAction.CLEAR,
-        .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
-    };
 
-    var desc: sg.PipelineDesc = .{};
+    bindings.vertex_buffers[0] = sg.makeBuffer(.{
+        .size = @sizeOf(Vertex) * options.options.RENDER_BUFFER_CAPACITY * 4,
+        .usage = sg.Usage.STREAM,
+        .label = "quad-vertices",
+    });
+
+    // create an index buffer for the cube
+    bindings.index_buffer = sg.makeBuffer(.{
+        .type = sg.BufferType.INDEXBUFFER,
+        .size = @sizeOf(u16) * options.options.RENDER_BUFFER_CAPACITY * 6,
+        .usage = sg.Usage.STREAM,
+        .label = "quad-indices",
+    });
+    // create a sampler object with default attributes
+    bindings.fs.samplers[shd.SLOT_smp] = sg.makeSampler(.{
+        .min_filter = sg.Filter.LINEAR,
+        .mag_filter = sg.Filter.NEAREST,
+        .wrap_u = sg.Wrap.CLAMP_TO_EDGE,
+        .wrap_v = sg.Wrap.CLAMP_TO_EDGE,
+        .label = "quad-sampler",
+    });
+
+    shader = sg.makeShader(shd.sglShaderDesc(sg.queryBackend()));
+    var desc: sg.PipelineDesc = .{
+        .shader = sg.makeShader(shd.sglShaderDesc(sg.queryBackend())),
+        .index_type = sg.IndexType.UINT16,
+    };
+    desc.layout.attrs[shd.ATTR_vs_position].format = sg.VertexFormat.FLOAT2;
+    desc.layout.attrs[shd.ATTR_vs_texcoord0].format = sg.VertexFormat.FLOAT2;
+    desc.layout.attrs[shd.ATTR_vs_color0].format = sg.VertexFormat.UBYTE4N;
     desc.colors[0].blend = .{
         .enabled = true,
         .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
         .dst_factor_rgb = sg.BlendFactor.ONE_MINUS_SRC_ALPHA,
     };
-    pip_normal = sgl.makePipeline(desc);
+    desc.label = "normal-pipeline";
+    pip_normal = sg.makePipeline(desc);
     desc.colors[0].blend = .{
         .enabled = true,
         .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
         .dst_factor_rgb = .ONE,
     };
-    pip_lighter = sgl.makePipeline(desc);
+    desc.label = "lighter-pipeline";
+    pip_lighter = sg.makePipeline(desc);
     pip = pip_normal;
+
+    // default pass action
+    pass_action.colors[0] = .{
+        .load_action = sg.LoadAction.CLEAR,
+        .clear_value = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+    };
 
     const white_pixels = [1]Rgba{types.white()} ** 4;
     NO_TEXTURE = Texture.init(vec2i(2, 2), &white_pixels);
@@ -75,89 +122,147 @@ pub fn init() void {
 
 /// Called by the platform
 pub fn cleanup() void {
-    sgl.destroyPipeline(pip_normal);
-    sgl.destroyPipeline(pip_lighter);
-    sgl.shutdown();
     sg.shutdown();
 }
 
-pub fn framePrepare() void {
+pub fn framePrepare() void {}
+
+pub fn frameEnd() void {
     const dw = @as(f32, @floatFromInt(backbuffer_size.x));
     const dh = @as(f32, @floatFromInt(backbuffer_size.y));
     const dx = @as(f32, @floatFromInt(window_size.x - backbuffer_size.x)) / 2.0;
     const dy = @as(f32, @floatFromInt(window_size.y - backbuffer_size.y)) / 2.0;
+    const vs_params = shd.VsParams{
+        .screen = [2]f32{ dw, dh },
+    };
 
-    sgl.viewportf(dx, dy, dw, dh, true);
-    sgl.defaults();
-    sgl.loadPipeline(pip);
-    sgl.matrixModeProjection();
-    sgl.ortho(0, @as(f32, @floatFromInt(logical_size.x)), @as(f32, @floatFromInt(logical_size.y)), 0, -1, 1);
-    sgl.matrixModeModelview();
-    sgl.loadIdentity();
-}
+    sg.updateBuffer(bindings.vertex_buffers[0], sg.asRange(quad_buffer[0..quad_buffer_len]));
+    sg.updateBuffer(bindings.index_buffer, sg.asRange(index_buffer[0..index_buffer_len]));
 
-pub fn frameEnd() void {
     sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
-    sgl.draw();
+    sg.applyViewportf(dx, dy, dw, dh, true);
+    sg.applyPipeline(pip);
+    sg.applyUniforms(sg.ShaderStage.VS, shd.SLOT_vs_params, sg.asRange(&vs_params));
+    flush();
     sg.endPass();
     sg.commit();
 }
 
 /// Draws a rect with the given logical position, size, texture, uv-coords and
 /// color, transformed by the current transform stack
-pub fn draw(pos: Vec2, size: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
+pub fn draw(p: Vec2, s: Vec2, texture_handle: Texture, uv_offset: Vec2, uv_size: Vec2, color: Rgba) void {
+    var pos = p;
+    var size = s;
     if (pos.x > @as(f32, @floatFromInt(logical_size.x)) or pos.y > @as(f32, @floatFromInt(logical_size.y)) or
         pos.x + size.x < 0 or pos.y + size.y < 0)
     {
         return;
     }
 
-    // pos = mulf(pos, screen_scale);
-    // size = mulf(size, screen_scale);
+    pos = pos.mulf(screen_scale);
+    size = size.mulf(screen_scale);
     draw_calls += 1;
 
-    const q = .{
-        .vertices = .{
-            .{ .pos = pos, .uv = uv_offset, .color = color },
-            .{ .pos = .{ .x = pos.x + size.x, .y = pos.y }, .uv = .{ .x = uv_offset.x + uv_size.x, .y = uv_offset.y }, .color = color },
-            .{ .pos = .{ .x = pos.x + size.x, .y = pos.y + size.y }, .uv = .{ .x = uv_offset.x + uv_size.x, .y = uv_offset.y + uv_size.y }, .color = color },
-            .{ .pos = .{ .x = pos.x, .y = pos.y + size.y }, .uv = .{ .x = uv_offset.x, .y = uv_offset.y + uv_size.y }, .color = color },
-        },
+    const uv0: Vec2 = uv_offset;
+    const uv1: Vec2 = vec2(uv_offset.x + uv_size.x, uv_offset.y);
+    const uv2: Vec2 = vec2(uv_offset.x + uv_size.x, uv_offset.y + uv_size.y);
+    const uv3: Vec2 = vec2(uv_offset.x, uv_offset.y + uv_size.y);
+
+    var vertices = [4]Vertex{
+        .{ .pos = pos, .uv = uv0, .color = color },
+        .{ .pos = .{ .x = pos.x + size.x, .y = pos.y }, .uv = uv1, .color = color },
+        .{ .pos = .{ .x = pos.x + size.x, .y = pos.y + size.y }, .uv = uv2, .color = color },
+        .{ .pos = .{ .x = pos.x, .y = pos.y + size.y }, .uv = uv3, .color = color },
     };
 
-    // if (transform_stack_index > 0) {
-    // 	mat3_t *m = &transform_stack[transform_stack_index];
-    // 	for (uint32_t i = 0; i < 4; i++) {
-    // 		q.vertices[i].pos = vec2_transform(q.vertices[i].pos, m);
-    // 	}
-    // }
+    if (transform_stack_index > 0) {
+        const m = transform_stack[transform_stack_index];
+        for (0..4) |i| {
+            vertices[i].pos = vertices[i].pos.transform(m);
+        }
+    }
 
-    drawQuad(q, texture_handle);
+    drawQuad(.{ .vertices = vertices }, texture_handle);
+}
+
+pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
+    if (quad_buffer_len >= quad_buffer.len) {
+        unreachable;
+    }
+
+    const t = texture.textures[texture_handle.index];
+    var q = quad;
+    q.vertices[0].uv = q.vertices[0].uv.div(types.fromVec2i(t.size));
+    q.vertices[1].uv = q.vertices[1].uv.div(types.fromVec2i(t.size));
+    q.vertices[2].uv = q.vertices[2].uv.div(types.fromVec2i(t.size));
+    q.vertices[3].uv = q.vertices[3].uv.div(types.fromVec2i(t.size));
+
+    tex_buffer[tex_buffer_len] = t.img;
+    tex_buffer_len += 1;
+
+    // zig fmt: off
+    quad_buffer[quad_buffer_len] = q.vertices[0]; quad_buffer_len += 1;
+    quad_buffer[quad_buffer_len] = q.vertices[1]; quad_buffer_len += 1;
+    quad_buffer[quad_buffer_len] = q.vertices[2]; quad_buffer_len += 1;
+    quad_buffer[quad_buffer_len] = q.vertices[3]; quad_buffer_len += 1;
+    // zig fmt: on
+
+    const indices = [_]u16{
+        0, 1, 2, 0, 2, 3,
+    };
+    for (0..6) |i| {
+        index_buffer[index_buffer_len + i] = @as(u16, @intCast(quad_buffer_len - 4)) + indices[i];
+    }
+    index_buffer_len += 6;
+}
+
+fn flush() void {
+    if (quad_buffer_len == 0)
+        return;
+
+    var i: usize = 0;
+    var j: usize = 0;
+    while (i < tex_buffer_len) : (i += 1) {
+        bindings.fs.images[shd.SLOT_tex] = tex_buffer[i];
+        sg.applyBindings(bindings);
+        sg.draw(@intCast(j), 6, 1);
+        j += 6;
+    }
+    quad_buffer_len = 0;
+    index_buffer_len = 0;
+    tex_buffer_len = 0;
 }
 
 /// Push the transform stack
 pub fn push() void {
-    sgl.pushMatrix();
+    assert(transform_stack_index < options.options.RENDER_TRANSFORM_STACK_SIZE - 1); // Max transform stack size RENDER_TRANSFORM_STACK_SIZE reached"
+    transform_stack[transform_stack_index + 1] = transform_stack[transform_stack_index];
+    transform_stack_index += 1;
 }
 
 /// Pop the transform stack
 pub fn pop() void {
-    sgl.popMatrix();
+    assert(transform_stack_index != 0); // Cannot pop from empty transform stack
+    transform_stack_index -= 1;
 }
 
 /// Translate; can only be called if stack was pushed at least once
 pub fn translate(t: Vec2) void {
-    sgl.translate(t.x, t.y, 0.0);
+    assert(transform_stack_index != 0); // Cannot translate initial transform. render.push() first.
+    const t2 = t.mulf(screen_scale);
+    transform_stack[transform_stack_index].translate(t2);
 }
 
 /// Scale; can only be called if stack was pushed at least once
-pub fn scale(t: Vec2) void {
-    sgl.scale(t.x, t.y, 1.0);
+pub fn scale(s: Vec2) void {
+    assert(transform_stack_index != 0); // Cannot scale initial transform. render.push() first.
+    transform_stack[transform_stack_index].scale(s);
 }
 
 /// Rotate; can only be called if stack was pushed at least once
 pub fn rotate(rotation: f32) void {
-    sgl.rotate(rotation, 0.0, 0.0, 1.0);
+    assert(transform_stack_index != 0); // Cannot rotate initial transform. render.push() first.
+    transform_stack[transform_stack_index].rotate(rotation);
 }
 
 /// Return the logical size
@@ -214,5 +319,4 @@ pub fn setBlendMode(new_mode: BlendMode) void {
 
     blend_mode = new_mode;
     pip = if (blend_mode == .normal) pip_normal else pip_lighter;
-    sgl.loadPipeline(pip);
 }

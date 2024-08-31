@@ -91,7 +91,7 @@ pub const Map = struct {
         }
         switch (root.object.get("tilesetName").?) {
             .string => |tileset_name| {
-                std.log.info("loaded map {} {} {s}\n", .{ map.size.x, map.size.y, tileset_name });
+                std.log.info("loaded map {} {} {s}", .{ map.size.x, map.size.y, tileset_name });
                 map.tileset = img.Image.init(tileset_name) catch @panic("error when parsing map");
             },
             .null => {},

@@ -1,6 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const options = @import("options.zig").options;
+const render = @import("render.zig");
 const types = @import("types.zig");
 const Vec2 = types.Vec2;
 const Vec2i = types.Vec2i;
@@ -11,13 +12,13 @@ const sgl = sokol.gl;
 
 pub const TextureMark = struct { index: usize = 0 };
 
-const Vertex = struct {
+pub const Vertex = struct {
     pos: Vec2,
     uv: Vec2,
     color: Rgba,
 };
 
-const Quad = struct {
+pub const Quad = struct {
     vertices: [4]Vertex,
 };
 
@@ -60,27 +61,7 @@ const InternalTexture = struct {
     img: sg.Image,
 };
 
-var textures: [options.RENDER_TEXTURES_MAX]InternalTexture = undefined;
-
-pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
-    const t = &textures[texture_handle.index];
-    sgl.enableTexture();
-    sgl.texture(t.img, sampler);
-    sgl.beginQuads();
-    for (quad.vertices) |v| {
-        sgl.v2fT2fC4b(
-            v.pos.x,
-            v.pos.y,
-            v.uv.x / @as(f32, @floatFromInt(t.size.x)),
-            v.uv.y / @as(f32, @floatFromInt(t.size.y)),
-            v.color.components[0],
-            v.color.components[1],
-            v.color.components[2],
-            v.color.components[3],
-        );
-    }
-    sgl.end();
-}
+pub var textures: [options.RENDER_TEXTURES_MAX]InternalTexture = undefined;
 
 pub fn texturesMark() TextureMark {
     return .{ .index = textures_len };

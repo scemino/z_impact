@@ -136,8 +136,10 @@ pub fn frameEnd() void {
         .screen = [2]f32{ dw, dh },
     };
 
-    sg.updateBuffer(bindings.vertex_buffers[0], sg.asRange(quad_buffer[0..quad_buffer_len]));
-    sg.updateBuffer(bindings.index_buffer, sg.asRange(index_buffer[0..index_buffer_len]));
+    if (quad_buffer_len > 0 and index_buffer_len > 0) {
+        sg.updateBuffer(bindings.vertex_buffers[0], sg.asRange(quad_buffer[0..quad_buffer_len]));
+        sg.updateBuffer(bindings.index_buffer, sg.asRange(index_buffer[0..index_buffer_len]));
+    }
 
     sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
     sg.applyViewportf(dx, dy, dw, dh, true);

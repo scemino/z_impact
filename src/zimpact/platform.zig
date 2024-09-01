@@ -263,19 +263,19 @@ pub export fn platformHandleEvent(ev: [*c]const sapp.Event) void {
         }
     }
 
-    // // Mouse wheel
+    // Mouse wheel
     else if (ev.*.type == .MOUSE_SCROLL) {
         const button: Button = if (ev.*.scroll_y > 0) .INPUT_MOUSE_WHEEL_UP else .INPUT_MOUSE_WHEEL_DOWN;
         input.setButtonState(button, 1.0);
         input.setButtonState(button, 0.0);
     }
 
-    // // Mouse move
+    // Mouse move
     else if (ev.*.type == .MOUSE_MOVE) {
         input.setMousePos(@intFromFloat(ev.*.mouse_x), @intFromFloat(ev.*.mouse_y));
     }
 
-    // // Window Events
+    // Window Events
     if (ev.*.type == .RESIZED) {
         render.resize(vec2i(ev.*.window_width, ev.*.window_height));
     }

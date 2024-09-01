@@ -154,10 +154,21 @@ pub fn tempAllocCheck() void {
     }
 }
 
+/// Free the temp allocation
+pub fn tempFree(old_mem: []u8) void {
+    var ta = TempAllocator{};
+    ta.allocator().free(old_mem);
+}
+
 /// Allocate `size` bytes in bump memory
 pub fn bumpAlloc(comptime T: type, size: usize) ![]T {
     var bump_alloc = BumpAllocator{};
     return bump_alloc.allocator().alloc(T, size);
+}
+
+pub fn bumpCreate(comptime T: type) !*T {
+    var bump_alloc = BumpAllocator{};
+    return bump_alloc.allocator().create(T);
 }
 
 /// Return the current position of the bump allocator
@@ -175,9 +186,10 @@ pub fn bumpReset(mark: BumpMark) void {
 /// (temp and bump) into the hunk at the same time.
 pub fn bumpFromTemp(comptime T: type, temp: []T, offset: usize, size: usize) []T {
     var ta = TempAllocator{};
-    ta.allocator().free(temp);
-    assert(bump_len + temp_len + size < options.ALLOC_SIZE); //, "Failed to allocate %d bytes in hunk mem", size);
-    var fa = std.heap.FixedBufferAllocator.init(hunk[bump_len .. bump_len + size]);
+    defer ta.allocator().free(temp);
+    assert(bump_len + temp_len + size < options.ALLOC_SIZE); // Failed to allocate size bytes in hunk mem
+    const result = hunk[bump_len .. bump_len + size];
+    @memcpy(result, temp[offset .. offset + size]);
     bump_len += size;
-    return fa.allocator().dupe(T, temp[offset .. offset + size]) catch @panic("failed to bump from temp");
+    return result;
 }

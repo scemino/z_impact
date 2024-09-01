@@ -29,7 +29,7 @@ pub const Anim = struct {
     rotation: f32 = 0.0,
     color: Rgba,
 
-    // Draw the animation at the given pos
+    /// Draw the animation at the given pos
     pub fn draw(self: *Anim, pos: Vec2) void {
         var def = self.def;
         const rs = render.renderSize();
@@ -81,8 +81,8 @@ pub const Anim = struct {
     }
 };
 
-/// Create an anim_def with the given sheet, frame_size, frame_time, sequence and loop.
-/// E.g.: animDef(sheet, vec2i(16, 8), 0.5, [_]u16{0,1,2,3,4}, true);
+/// Create an `AnimDef` with the given sheet, `frame_size`, `frame_time`, sequence and loop.
+/// E.g.: `animDef(sheet, vec2i(16, 8), 0.5, [_]u16{0,1,2,3,4}, true);`
 pub fn animDef(sheet: *const img.Image, frame_size: Vec2i, frame_time: f32, sequence: []const u16, loop: bool) AnimDef {
     assert(sequence.len > 0);
     return .{
@@ -96,7 +96,7 @@ pub fn animDef(sheet: *const img.Image, frame_size: Vec2i, frame_time: f32, sequ
     };
 }
 
-/// Create an Anim instance with the given AnimDef
+/// Create an `Anim` instance with the given `AnimDef`
 pub fn anim(anim_def: ?*const AnimDef) Anim {
     return .{ .def = anim_def, .color = types.white(), .start_time = engine.time };
 }

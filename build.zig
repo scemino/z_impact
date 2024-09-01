@@ -37,7 +37,9 @@ pub fn build(b: *std.Build) !void {
         .install_dir = .prefix,
         .install_subdir = "docs",
     });
-    b.getInstallStep().dependOn(&docs.step);
+    var docs_step = b.step("docs", "Build docs");
+    docs_step.dependOn(&docs.step);
+    b.getInstallStep().dependOn(docs_step);
 
     // build qoiconv executable
     const qoiconv_exe = b.addExecutable(.{

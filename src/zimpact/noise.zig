@@ -7,7 +7,7 @@ const Vec2 = @import("types.zig").Vec2;
 /// A 2D perlin noise generator. This generates "random" numbers with natural
 /// looking gradients for points that are close together.
 /// See https://en.wikipedia.org/wiki/Perlin_noise
-/// FIXME: should this even be part of high_impact?
+/// FIXME: should this even be part of Z impact?
 pub const Noise = struct {
     size_bits: u4,
     g: []Vec2,

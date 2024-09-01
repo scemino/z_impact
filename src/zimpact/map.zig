@@ -40,14 +40,14 @@ pub const Map = struct {
     /// Whether to draw this map in fround of all entities
     foreground: bool = false,
 
-    /// The tileset image to use when drawing. Might be NULL for collision maps
+    /// The tileset image to use when drawing. Might be `null` for collision maps
     tileset: ?*img.Image = null,
 
-    /// Animations for certain tiles when drawing. Use map_set_anim() to add
+    /// Animations for certain tiles when drawing. Use `map.setAanim()` to add
     /// animations.
     anims: ?[]?*MapAnimDef = null,
 
-    /// The tile indices with a length of size.x * size.y
+    /// The tile indices with a length of `size.x * size.y`
     data: []u16,
 
     /// The highest tile index in that map; used internally.
@@ -56,6 +56,7 @@ pub const Map = struct {
     /// Load a map from a json. The json must have the following layout.
     /// Note that tile indices have a bias of +1. I.e. index 0 will not draw anything
     /// and represent a blank tile. Index 1 will draw the 0th tile from the tileset.
+    /// ```json
     /// {
     /// 	"name": "background",
     /// 	"width": 4,
@@ -70,6 +71,7 @@ pub const Map = struct {
     /// 		[3,2,1,0],
     /// 	]
     /// }
+    /// ```
     pub fn initFromJson(root: Value) *Map {
         assert(!engine.is_running);
 
@@ -118,7 +120,7 @@ pub const Map = struct {
     }
 
     /// Create a map with the given data. If data is not null, it must be least
-    /// size.x * size.y elements long. The data is _not_ copied. If data is null,
+    /// `size.x * size.y` elements long. The data is _not_ copied. If data is `null`,
     /// an array of sufficent length will be allocated.
     pub fn initWithData(tile_size: u16, size: Vec2i, data: ?[]u16) Map {
         assert(!engine.is_running); // "Cannot create map during gameplay");

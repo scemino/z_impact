@@ -34,7 +34,7 @@ pub const Options = struct {
     ENTITIES_MAX: usize = 1024,
 
     /// The maximum size any of your entities is expected to have. This only affects
-    /// the accuracy of entities_by_proximity() and entities_by_location().
+    /// the accuracy of `entitiesByProximity()` and `entitiesByLocation()`.
     /// FIXME: this is bad; we should have to specify this.
     ENTITY_MAX_SIZE: f32 = 64.0,
 
@@ -47,10 +47,6 @@ pub const Options = struct {
     /// sweep & prune. For mosly horizontal games it should be x, for vertical ones y
     ENTITY_SWEEP_AXIS: SweepAxis = .x,
 
-    /// The axis (x or y) on which we want to do the broad phase collision detection
-    /// sweep & prune. For mosly horizontal games it should be x, for vertical ones y
-    // TODO: ENTITY_SWEEP_AXIS: SweepAxis = .x,
-
     /// The maximum number of images we expect to have loaded at one time
     IMAGE_MAX_SOURCES: usize = 1024,
 
@@ -62,7 +58,7 @@ pub const Options = struct {
     /// controller.
     INPUT_DEADZONE: f32 = 0.1,
 
-    /// The deadzone for input_capture()
+    /// The deadzone for `input.capture()`
     INPUT_DEADZONE_CAPTURE: f32 = 0.5,
 
     /// The resize mode determines how the logical size changes to adapt to the

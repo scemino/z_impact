@@ -5,7 +5,7 @@ const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const assert = std.debug.assert;
 
-/// Key and buttons names for input_bind()
+/// Key and buttons names for `input.bind()`
 pub const Button = enum(u8) {
     INPUT_INVALID = 0,
     INPUT_KEY_A = 4,
@@ -227,11 +227,8 @@ pub fn setButtonState(button: Button, s: f32) void {
 
 /// Bind a key/button to an action. Multiple buttons can be bound to the same
 /// action, but one key/button can only be bound to one action. Action is just
-/// a uint8_t identifier, usually from an enum in your game.
+/// a `u8` identifier, usually from an enum in your game.
 pub fn bind(button: Button, action: u8) void {
-    // error_if(button < 0 || button >= INPUT_BUTTON_MAX, "Invalid input button %d", button);
-    // error_if(action < 0 || action >= INPUT_ACTION_MAX, "Invalid input action %d", action);
-
     actions_state[action] = 0;
     bindings[@intCast(@intFromEnum(button))] = action;
 }
@@ -249,7 +246,7 @@ pub fn unbindAll() void {
 }
 
 /// Set up a capture callback that will receive ALL key and button presses. For
-/// non-text input, ascii_char will be 0. Call input_capture(NULL, NULL) to
+/// non-text input, ascii_char will be 0. Call `input.capture(null, null)` to
 /// uninstall a callback.
 const CaptureCallback = *fn (user: ?*anyopaque, button: Button, ascii_char: u32) void;
 var capture_callback: ?CaptureCallback = null;

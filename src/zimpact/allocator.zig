@@ -10,43 +10,42 @@ var temp_len: usize = 0;
 var temp_objects: [options.ALLOC_TEMP_OBJECTS_MAX]usize = [1]usize{0} ** options.ALLOC_TEMP_OBJECTS_MAX;
 var temp_objects_len: usize = 0;
 
-// We statically reserve a single "hunk" of memory at program start. Memory
-// (for our own allocators) can not ever outgrow this hunk. Theres two ways to
-// allocate bytes from this hunk:
-
-//   1. A bump allocator that just grows linearly and may be reset to a previous
-// level. This returns bytes from the front of the hunk and is meant for all
-// data the game needs while it's running.
-
-// high_impact mostly manages this bump level for you. First everything that is
-// bump-allocated _before_ engine_set_scene() is called will only be freed when.
-// the program ends.
-// Then, when a scene is loaded the bump position is recorded. When the current
-// scene ends (i.e. engine_set_scene() is called again), the bump allocator is
-// reset to that position. Conceptually the scene is wrapped in an alloc_pool().
-// Thirdly, each frame is wrapped in an alloc_pool().
-
-// This all means that you can't use any memory that you allocated in one scene
-// in another scene and also that you can't use any memory that you allocated in
-// one frame in the next frame.
-
-//   2. A temp allocator. This allocates bytes from the end of the hunk. Temp
-// allocated bytes must be explicitly temp_freed() again. As opposed to the bump
-// allocater, the temp allocator can be freed() out of order.
-
-// The temp allocator is meant for very short lived objects, to assist data
-// loading. E.g. pixel data from an image file might be temp allocated, handed
-// over to the render (which may pass it on to the GPU or permanently put it in
-// the bump memory) and then immediately free() it again.
-
-// Temp allocations are not allowed to persist. At the end of each frame, the
-// engine checks if the temp allocator is empty - and if not: kills the program.
-
-// There's no way to handle an allocation failure. We just kill the program
-// with an error. This is fine if you know all your game data (i.e. levels) in
-// advance. Games that allow loading user defined levels may need a separate
-// allocation strategy...
-
+/// We statically reserve a single "hunk" of memory at program start. Memory
+/// (for our own allocators) can not ever outgrow this hunk. Theres two ways to
+/// allocate bytes from this hunk:
+///
+///   1. A bump allocator that just grows linearly and may be reset to a previous
+/// level. This returns bytes from the front of the hunk and is meant for all
+/// data the game needs while it's running.
+///
+/// Z impact mostly manages this bump level for you. First everything that is
+/// bump-allocated _before_ `engine.setScene()` is called will only be freed when.
+/// the program ends.
+/// Then, when a scene is loaded the bump position is recorded. When the current
+/// scene ends (i.e. `engine.setScene()` is called again), the bump allocator is
+/// reset to that position. Conceptually the scene is wrapped in an alloc_pool().
+/// Thirdly, each frame is wrapped in an alloc_pool().
+///
+/// This all means that you can't use any memory that you allocated in one scene
+/// in another scene and also that you can't use any memory that you allocated in
+/// one frame in the next frame.
+///
+///   2. A temp allocator. This allocates bytes from the end of the hunk. Temp
+/// allocated bytes must be explicitly freed again. As opposed to the bump
+/// allocater, the temp allocator can be freed out of order.
+///
+/// The temp allocator is meant for very short lived objects, to assist data
+/// loading. E.g. pixel data from an image file might be temp allocated, handed
+/// over to the render (which may pass it on to the GPU or permanently put it in
+/// the bump memory) and then immediately free() it again.
+///
+/// Temp allocations are not allowed to persist. At the end of each frame, the
+/// engine checks if the temp allocator is empty - and if not: kills the program.
+///
+/// There's no way to handle an allocation failure. We just kill the program
+/// with an error. This is fine if you know all your game data (i.e. levels) in
+/// advance. Games that allow loading user defined levels may need a separate
+/// allocation strategy...
 pub const BumpMark = struct { index: usize = 0 };
 
 pub const BumpAllocator = struct {
@@ -172,7 +171,7 @@ pub fn bumpReset(mark: BumpMark) void {
 }
 
 /// Move bytes from temp to bump memory. This is essentially a shorthand for
-/// `bump_alloc(); memcpy(); temp_free();` without the requirement to fit both
+/// `bumpAlloc(); @memcpy(); ta.allocator().free();` without the requirement to fit both
 /// (temp and bump) into the hunk at the same time.
 pub fn bumpFromTemp(comptime T: type, temp: []T, offset: usize, size: usize) []T {
     var ta = TempAllocator{};

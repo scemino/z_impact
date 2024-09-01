@@ -64,7 +64,7 @@ var frame: u64 = 0;
 /// Use engine_set_collision_map() to set it.
 pub var collision_map: ?*Map = null;
 
-/// The maps to draw. Reset for each scene. Use engine_add_background_map()
+/// The maps to draw. Reset for each scene. Use `engine.addBackgroundMap()`
 /// to add.
 pub var background_maps: [options.ENGINE_MAX_BACKGROUND_MAPS]?*Map = [1]?*Map{null} ** options.ENGINE_MAX_BACKGROUND_MAPS;
 var background_maps_len: u32 = 0;
@@ -99,7 +99,7 @@ pub var entity_unique_id: u16 = 0;
 /// The engine is the main wrapper around your. For every frame, it will update
 /// your scene, update all entities and draw the whole frame.
 /// The engine takes care of timekeeping, a number background maps, a collision
-/// map some more global state. There's only one engine_t instance in high_impact
+/// map some more global state. There's only one engine_t instance in Z impact
 /// and it's globally available at `engine`
 pub const Engine = struct {
     const Self = @This();
@@ -261,13 +261,13 @@ pub const Engine = struct {
         background_maps_len += 1;
     }
 
-    /// Set the collision map; typically done through engine_load_level()
+    /// Set the collision map; typically done through `engine.loadLevel()`
     pub fn setCollisionMap(map: *Map) void {
         collision_map = map;
     }
 
     /// Load a level (background maps, collision map and entities) from a json path.
-    /// This should only be called from within your scenes init() function.
+    /// This should only be called from within your scenes `init()` function.
     pub fn loadLevel(json_path: []const u8) void {
         var ba = alloc.BumpAllocator{};
         const json = platform.loadAssetJson(json_path, ba.allocator());
@@ -334,11 +334,11 @@ pub const Engine = struct {
         }
     }
 
-    /// Makes the scene_the current scene. This calls scene.cleanup() on the old
-    /// scene and scene.init() on the new one. The actual swap of scenes happens
-    /// at the beginning of the next frame, so it's ok to call engine_set_scene()
+    /// Makes the scene_the current scene. This calls `scene.cleanup()` on the old
+    /// scene and `scene.init()` on the new one. The actual swap of scenes happens
+    /// at the beginning of the next frame, so it's ok to call `engine.setScene()`
     /// from the middle of a frame.
-    /// Your main_init() function must call engine_set_scene() to set first scene.
+    /// Your main `init()` function must call `engine.setScene()` to set first scene.
     pub fn setScene(s: *const Scene) void {
         scene_next = s;
     }

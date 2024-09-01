@@ -14,7 +14,7 @@ const FontGlyph = struct {
     advance: i32,
 };
 
-/// Fonts are a wrapper around image() that makes it easier to draw text on the
+/// Fonts are a wrapper around `image()` that makes it easier to draw text on the
 /// screen. The font image contains all glyphs and is accompanied by a json
 /// file that specifies the position, size and advance width of each glyph.
 /// Use the font_tool.html to create the image and json.
@@ -104,7 +104,6 @@ pub fn font(path: []const u8, definition_path: []const u8) *Font {
     const def = platform.loadAssetJson(definition_path, ba.allocator());
     defer def.deinit();
     const obj = def.value.object;
-    // error_if(def == NULL, "Couldn't load fnt definition json");
 
     const metrics = obj.get("metrics").?.array;
 
@@ -114,8 +113,7 @@ pub fn font(path: []const u8, definition_path: []const u8) *Font {
 
     const expected_chars: usize = @intCast(fnt.last_char - fnt.first_char);
 
-    // error_if(metrics == NULL || metrics.type != JSON_ARRAY, "fnt metrics are not an array");
-    // error_if(metrics.len / 7 != expected_chars, "fnt metrics has incorrect length (expected %d have %d)", expected_chars, metrics.len / 7);
+    std.debug.assert(metrics.items.len / 7 == expected_chars); // fnt metrics has incorrect length (expected expected_chars have metrics.len / 7
 
     fnt.glyphs = ba.allocator().alloc(FontGlyph, expected_chars) catch @panic("failed to alloc font glyphs");
     var i: usize = 0;

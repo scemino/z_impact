@@ -26,7 +26,7 @@ pub fn randSeed(seed: u64) void {
     rand = r.random();
 }
 
-/// A random uint64_t
+/// A random `u64`
 pub fn randU64() u64 {
     return rand.int(u64);
 }

@@ -188,7 +188,7 @@ pub fn samplerate() u32 {
     return platform_output_samplerate;
 }
 
-/// Load a file into temp memory. Must be freed via temp_free()
+/// Load a file into temp memory. Must be freed via `ta.allocator.free()`
 pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
     var file = bin_dir.openFile(name, .{}) catch @panic("failed to load asset");
     defer file.close();
@@ -201,7 +201,7 @@ pub fn loadAsset(name: []const u8, allocator: std.mem.Allocator) []u8 {
     return buf;
 }
 
-/// Load a json file into temp memory. Must be freed via temp_free()
+/// Load a json file into temp memory. Must be freed via `ta.allocator.free()`
 pub fn loadAssetJson(name: []const u8, allocator: std.mem.Allocator) Parsed(Value) {
     var temp_alloc = TempAllocator{};
     const buf = loadAsset(name, temp_alloc.allocator());

@@ -120,13 +120,15 @@ pub fn init() void {
     NO_TEXTURE = Texture.init(vec2i(2, 2), &white_pixels);
 }
 
-/// Called by the platform
+/// Called by the engine
 pub fn cleanup() void {
     sg.shutdown();
 }
 
+/// Called by the engine
 pub fn framePrepare() void {}
 
+/// Called by the engine
 pub fn frameEnd() void {
     const dw = @as(f32, @floatFromInt(backbuffer_size.x));
     const dh = @as(f32, @floatFromInt(backbuffer_size.y));

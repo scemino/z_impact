@@ -11,9 +11,9 @@ const options = @import("options.zig").options;
 const trace = @import("trace.zig").trace;
 
 /// Entity refs can be used to safely keep track of entities. Refs can be
-/// resolved to an actual entity_t with entity_by_ref(). Refs will resolve to
-/// NULL, if the referenced entity is no longer valid (i.e. dead). This prevents
-/// errors with direct entity_t* which will always point to a valid entity
+/// resolved to an actual Entity with `entityByRef()`. Refs will resolve to
+/// `null`, if the referenced entity is no longer valid (i.e. dead). This prevents
+/// errors with direct `*Entity` which will always point to a valid entity
 /// storage, but may no longer be the entity that you wanted.
 pub const EntityRef = struct {
     id: u16,
@@ -31,15 +31,17 @@ pub fn entityRefNone() EntityRef {
     return .{ .id = 0, .index = 0 };
 }
 
-/// Entities can be members of one or more groups (through ent->group). This can
-/// be used in conjunction with ent->check_against to indicate for which pairs
-/// of entities you want to get notified by entity_touch(). Groups can be or-ed
+/// Entities can be members of one or more groups (through `ent.group`). This can
+/// be used in conjunction with `ent.check_against` to indicate for which pairs
+/// of entities you want to get notified by `entityTouch()`. Groups can be or-ed
 /// together.
 /// E.g. with the following two entities
-///   ent_a->group = ENTITY_GROUP_ITEM | ENTITY_GROUP_BREAKABLE;
-///   ent_b->check_against = ENTITY_GROUP_BREAKABLE;
+/// ```zig
+///   ent_a.group = ENTITY_GROUP_ITEM | ENTITY_GROUP_BREAKABLE;
+///   ent_b.check_against = ENTITY_GROUP_BREAKABLE;
+/// ```
 /// The function
-///   entity_touch(ent_b, ent_a)
+///   `entity_touch(ent_b, ent_a)`
 /// will be called when those two entities overlap.
 pub const ENTITY_GROUP_NONE = 0;
 pub const ENTITY_GROUP_PLAYER = (1 << 0);
@@ -125,53 +127,53 @@ pub const Entity = struct {
     entity: options.ENTITY_TYPE,
 };
 
-/// The EntityVtab struct must implemented by all your entity types. It holds
+/// The `EntityVtab` struct must implemented by all your entity types. It holds
 /// the functions to call for each entity type. All of these are optional. In
 /// the simplest case you just have a global:
-/// entity_vtab_t entity_vtab_mytype = {};
+/// `const vtabs = [_]zi.EntityVtab{}`;
 pub const EntityVtab = struct {
-    /// Called once at program start, just before main_init(). Use this to
+    /// Called once at program start, just before main `init()`. Use this to
     /// load assets and animations for your entity types.
     load: *const fn () void = noopLoad,
 
     /// Called once for each entity, when the entity is created through
-    /// entity_spawn(). Use this to set all properties (size, offset, animation)
+    /// `entitySpawn()`. Use this to set all properties (size, offset, animation)
     /// of your entity.
     init: *const fn (self: *Entity) void = noopInit,
 
-    /// Called once after engine_load_level() when all entities have been
+    /// Called once after `engine.loadLevel()` when all entities have been
     /// spawned. The json_t *def contains the "settings" of the entity from the
     /// level json.
     settings: *const fn (self: *Entity, def: ObjectMap) void = noopSettings,
 
-    /// Called once per frame for each entity. The default entity_update_base()
+    /// Called once per frame for each entity. The default `entityUpdateBase()`
     /// moves the entity according to its physics
     update: *const fn (self: *Entity) void = entityBaseUpdate,
 
-    /// Called once per frame for each entity. The default entity_draw_base()
-    /// draws the entity->anim
+    /// Called once per frame for each entity. The default `entityDrawBase()`
+    /// draws the `entity.anim`
     draw: *const fn (self: *Entity, viewport: Vec2) void = entityBaseDraw,
 
-    /// Called when the entity is removed from the game through entity_kill()
+    /// Called when the entity is removed from the game through `entityKill()`
     kill: *const fn (self: *Entity) void = noopKill,
 
     /// Called when this entity touches another entity, according to
-    /// entity->check_against
+    /// `entity.check_against`
     touch: *const fn (self: *Entity, other: *Entity) void = noopTouch,
 
     /// Called when the entity collides with the game world or another entity
     /// Careful: the trace will only be set from a game world collision. It will
-    /// be NULL for a collision with another entity.
+    /// be `null` for a collision with another entity.
     collide: *const fn (self: *Entity, normal: Vec2, trace: ?Trace) void = noopCollide,
 
-    /// Called through entity_damage(). The default entity_base_damage() deducts
-    /// damage from the entity's health and calls entity_kill() if it's <= 0.
+    /// Called through `entityDamage()`. The default `entityBaseDamage()` deducts
+    /// damage from the entity's health and calls `entityLill()` if it's <= 0.
     damage: *const fn (self: *Entity, other: *Entity, damage: f32) void = entityBaseDamage,
 
-    /// Called through entity_trigger()
+    /// Called through `entityTrigger()`
     trigger: *const fn (self: *Entity, other: *Entity) void = noopTrigger,
 
-    /// Called through entity_message()
+    /// Called through `entityMessage()`
     message: *const fn (self: *Entity, message: ?*anyopaque, data: ?*anyopaque) void = noopMessage,
 
     // zig fmt: off
@@ -191,7 +193,7 @@ inline fn vtab(ent: *Entity) EntityVtab {
     return engine.entity_vtab[@intFromEnum(tag)];
 }
 
-// Functions to call the correct function on each entity according to the vtab.
+/// Functions to call the correct function on each entity according to the vtab.
 pub fn entityInit(entity: *Entity) void {
     vtab(entity).init(entity);
 }

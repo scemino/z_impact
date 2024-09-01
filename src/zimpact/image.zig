@@ -22,8 +22,8 @@ var images_len: usize = 0;
 pub const ImageMark = struct { index: usize = 0 };
 
 /// Images can be loaded from QOI files or directly created with an array of
-/// rgba_t pixels. If an image at a certain path is already loaded, calling
-/// image() with that same path, will return the same image.
+/// `Rgba` pixels. If an image at a certain path is already loaded, calling
+/// `image()` with that same path, will return the same image.
 /// Images can be drawn to the screen in full, just parts of it, or as a "tile"
 /// from it.
 pub const Image = struct {
@@ -55,7 +55,7 @@ pub const Image = struct {
         const size = Vec2i{ .x = @intCast(img.width), .y = @intCast(img.height) };
         const image_pixels = std.mem.sliceAsBytes(img.pixels);
         const texture_pixels = std.mem.bytesAsSlice(Rgba, image_pixels);
-        const texture = Texture.init(size, texture_pixels);
+        const texture = Texture.init(size, @alignCast(texture_pixels));
 
         images[images_len] = .{ .size = size, .texture = texture };
         images_len += 1;

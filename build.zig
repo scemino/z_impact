@@ -47,6 +47,7 @@ pub fn build(b: *std.Build) !void {
         .target = b.host,
         .optimize = .ReleaseFast,
     });
+    qoiconv_exe.linkLibC();
     qoiconv_exe.addCSourceFile(.{
         .file = b.path("tools/qoiconv.c"),
         .flags = &[_][]const u8{"-std=c99"},
@@ -61,6 +62,7 @@ pub fn build(b: *std.Build) !void {
         .target = b.host,
         .optimize = .ReleaseFast,
     });
+    qoaconv_exe.linkLibC();
     qoaconv_exe.addCSourceFile(.{
         .file = b.path("tools/qoaconv.c"),
         .flags = &[_][]const u8{"-std=c99"},

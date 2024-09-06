@@ -7,6 +7,10 @@
             .url = "git+https://github.com/floooh/sokol-zig.git#f48d2bd051a282e01dbf463d0f9a59daefd09201",
             .hash = "1220f044556b4cbe92f797dece26d1418bbf67f8d7311e1b0040049690d1044b66e8",
         },
+        .sdl = .{
+            .url = "git+https://github.com/ikskuh/SDL.zig.git#676bfe080b683fdb9fb15e6e19a80b162b5ae3ca",
+            .hash = "122038b9b453ff147ae669153df58e110844f249376f461581c26f85753d5764ef4d",
+        },
     },
     .paths = .{
         "build.zig",

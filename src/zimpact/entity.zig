@@ -1,13 +1,15 @@
 const std = @import("std");
-const alloc = @import("allocator.zig");
-const Vec2 = @import("types.zig").Vec2;
+const cmn = @import("platform").cmn;
+const alloc = cmn.alloc;
+const types = cmn.types;
+const Vec2 = types.Vec2;
 const Anim = @import("anim.zig").Anim;
 const Trace = @import("trace.zig").Trace;
-const vec2 = @import("types.zig").vec2;
+const vec2 = types.vec2;
 const engine = @import("engine.zig");
 const Engine = engine.Engine;
 const ObjectMap = std.json.ObjectMap;
-const options = @import("options.zig").options;
+const options = cmn.opt.options;
 const trace = @import("trace.zig").trace;
 
 /// Entity refs can be used to safely keep track of entities. Refs can be

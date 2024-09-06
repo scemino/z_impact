@@ -1,20 +1,21 @@
 // namespaces
-pub const alloc = @import("allocator.zig");
+pub const cmn = platform.cmn;
+pub const alloc = cmn.alloc;
 pub const cam = @import("camera.zig");
 pub const engine = @import("engine.zig");
 pub const entity = @import("entity.zig");
 pub const fnt = @import("font.zig");
 pub const img = @import("image.zig");
-pub const input = @import("input.zig");
+pub const input = cmn.inp;
 pub const map = @import("map.zig");
 pub const noise = @import("noise.zig");
-pub const options = @import("options.zig");
-pub const platform = @import("platform.zig");
-pub const render = @import("render.zig");
+pub const options = cmn.opt;
+pub const platform = @import("platform");
+pub const render = platform.render;
 pub const scene = @import("scene.zig");
 pub const sound = @import("sound.zig");
 pub const trace = @import("trace.zig");
-pub const types = @import("types.zig");
+pub const types = cmn.types;
 pub const utils = @import("utils.zig");
 
 // functions

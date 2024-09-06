@@ -1,26 +1,94 @@
 const std = @import("std");
 const sokol = @import("sokol");
+const sdl = @import("sdl");
 
 const Child = std.process.Child;
 var mod_zi: *std.Build.Module = undefined;
 
 var assets_step: *std.Build.Step = undefined;
 
+fn sdkPath(comptime suffix: []const u8) []const u8 {
+    if (suffix[0] != '/') @compileError("relToPath requires an absolute path!");
+    return comptime blk: {
+        const root_dir = std.fs.path.dirname(@src().file) orelse ".";
+        break :blk root_dir ++ suffix;
+    };
+}
+
+pub const PlatformCreateOptions = struct {
+    sdl_platform: bool = true,
+    target: std.Build.ResolvedTarget = undefined,
+    optimize: std.builtin.OptimizeMode = undefined,
+};
+
+fn getPlatformModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.Module {
+    const target = options.target;
+    const optimize = options.optimize;
+
+    // create common module
+    const mod_common = b.createModule(.{
+        .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/common.zig") },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    var mod_platform: *std.Build.Module = undefined;
+    if (options.sdl_platform) {
+        const sdl_sdk = sdl.init(b, "");
+        // SDL platform module
+        mod_platform = b.createModule(.{
+            .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl.zig") },
+            .target = target,
+            .optimize = optimize,
+        });
+        mod_platform.addImport("sdl", sdl_sdk.getNativeModule());
+    } else {
+        // sokol platform module
+        mod_platform = b.createModule(.{
+            .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sokol.zig") },
+            .target = target,
+            .optimize = optimize,
+        });
+        const dep_sokol = b.dependency("sokol", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        mod_platform.addImport("sokol", dep_sokol.module("sokol"));
+    }
+    mod_platform.addImport("common", mod_common);
+    return mod_platform;
+}
+
+pub fn getZimpactModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.Module {
+    var mod_platform: *std.Build.Module = undefined;
+    mod_platform = getPlatformModule(b, .{
+        .sdl_platform = options.sdl_platform,
+        .target = options.target,
+        .optimize = options.optimize,
+    });
+
+    // zimpact module
+    mod_zi = b.addModule("zimpact", .{
+        .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/zimpact.zig") },
+        .target = options.target,
+        .optimize = options.optimize,
+    });
+    mod_zi.addImport("platform", mod_platform);
+    return mod_zi;
+}
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const platform = b.option([]const u8, "platform", "Plaftorm to use: sdl or sokol") orelse "sdl";
+    const is_sdl_platform = !std.mem.eql(u8, platform, "sokol");
+    const sdl_sdk = sdl.init(b, "");
 
-    const dep_sokol = b.dependency("sokol", .{
-        .target = target,
+    _ = getZimpactModule(b, .{
         .optimize = optimize,
-    });
-
-    mod_zi = b.addModule("zimpact", .{
-        .root_source_file = b.path("src/zimpact/zimpact.zig"),
         .target = target,
-        .optimize = optimize,
+        .sdl_platform = is_sdl_platform,
     });
-    mod_zi.addImport("sokol", dep_sokol.module("sokol"));
 
     // build lib
     const lib = b.addStaticLibrary(.{
@@ -120,8 +188,10 @@ pub fn build(b: *std.Build) !void {
                 .target = target,
                 .optimize = optimize,
             });
+            if (is_sdl_platform) {
+                sdl_sdk.link(exe, .dynamic);
+            }
             exe.root_module.addImport("zimpact", mod_zi);
-            exe.root_module.addImport("sokol", dep_sokol.module("sokol"));
 
             const run_cmd = b.addRunArtifact(exe);
             run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
@@ -133,7 +203,7 @@ pub fn build(b: *std.Build) !void {
             run_step.dependOn(assets_step);
             run_step.dependOn(&run_cmd.step);
         } else {
-            try buildWeb(b, target, optimize, dep_sokol);
+            try buildWeb(b, target, optimize);
         }
     } else |_| {}
 }
@@ -147,7 +217,11 @@ fn convert(b: *std.Build, tool: *std.Build.Step.Compile, input: []const u8, outp
 }
 
 // for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
-fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, dep_sokol: *std.Build.Dependency) !void {
+fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !void {
+    const dep_sokol = b.dependency("sokol", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const sample = b.addStaticLibrary(.{
         .name = "zdrop",
         .target = target,

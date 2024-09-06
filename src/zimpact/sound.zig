@@ -1,9 +1,10 @@
 const std = @import("std");
+const cmn = platform.cmn;
 const assert = std.debug.assert;
-const options = @import("options.zig").options;
-const platform = @import("platform.zig");
+const options = cmn.opt.options;
+const platform = @import("platform");
 const qoa = @import("qoa.zig");
-const alloc = @import("allocator.zig");
+const alloc = cmn.alloc;
 const TempAllocator = alloc.TempAllocator;
 const BumpAllocator = alloc.BumpAllocator;
 

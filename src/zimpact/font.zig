@@ -1,11 +1,12 @@
 const std = @import("std");
-const types = @import("types.zig");
+const cmn = platform.cmn;
+const types = cmn.types;
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const Rgba = types.Rgba;
 const Image = @import("image.zig").Image;
-const alloc = @import("allocator.zig");
-const platform = @import("platform.zig");
+const alloc = cmn.alloc;
+const platform = @import("platform");
 
 const FontGlyph = struct {
     pos: Vec2,

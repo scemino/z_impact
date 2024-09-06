@@ -1,6 +1,4 @@
 const std = @import("std");
-const sokol = @import("sokol");
-const sapp = sokol.app;
 const zi = @import("zimpact");
 const sgame = @import("scenes/game.zig");
 const game = @import("game.zig");

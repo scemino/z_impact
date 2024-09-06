@@ -1,11 +1,12 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const cmn = @import("common");
+const types = cmn.types;
 const Rgba = types.Rgba;
-const types = @import("types.zig");
-const texture = @import("texture.zig");
-const Texture = @import("texture.zig").Texture;
-const Quad = @import("texture.zig").Quad;
-const Vertex = @import("texture.zig").Vertex;
+const texture = cmn.texture;
+const Texture = texture.Texture;
+const Quad = texture.Quad;
+const Vertex = texture.Vertex;
 const Vec2 = types.Vec2;
 const vec2 = types.vec2;
 const Vec2i = types.Vec2i;
@@ -17,8 +18,15 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
-const options = @import("options.zig");
+const options = cmn.opt;
 const shd = @import("shaders.zig");
+
+const InternalTexture = struct {
+    size: Vec2i,
+    img: sg.Image,
+};
+
+var textures: [options.options.RENDER_TEXTURES_MAX]InternalTexture = undefined;
 
 var logical_size: Vec2i = undefined;
 var screen_scale: f32 = 0.0;
@@ -117,7 +125,7 @@ pub fn init() void {
     };
 
     const white_pixels = [1]Rgba{types.white()} ** 4;
-    NO_TEXTURE = Texture.init(vec2i(2, 2), &white_pixels);
+    NO_TEXTURE = initTexture(vec2i(2, 2), &white_pixels);
 }
 
 /// Called by the engine
@@ -194,7 +202,7 @@ pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
         unreachable;
     }
 
-    const t = texture.textures[texture_handle.index];
+    const t = textures[texture_handle.index];
     var q = quad;
     q.vertices[0].uv = q.vertices[0].uv.div(types.fromVec2i(t.size));
     q.vertices[1].uv = q.vertices[1].uv.div(types.fromVec2i(t.size));
@@ -323,4 +331,25 @@ pub fn setBlendMode(new_mode: BlendMode) void {
 
     blend_mode = new_mode;
     pip = if (blend_mode == .normal) pip_normal else pip_lighter;
+}
+
+pub fn initTexture(size: Vec2i, pixels: []const Rgba) Texture {
+    const img = sg.makeImage(.{
+        .width = size.x,
+        .height = size.y,
+        .pixel_format = .RGBA8,
+        .usage = .STREAM,
+    });
+    var img_data = sg.ImageData{};
+    img_data.subimage[0][0] = sg.asRange(pixels);
+    sg.updateImage(img, img_data);
+
+    assert(texture.textures_len < options.options.RENDER_TEXTURES_MAX);
+    textures[texture.textures_len] = .{ .size = size, .img = img };
+
+    const texture_handle = Texture{
+        .index = texture.textures_len,
+    };
+    texture.textures_len += 1;
+    return texture_handle;
 }

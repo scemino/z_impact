@@ -1,8 +1,10 @@
 const std = @import("std");
-const alloc = @import("allocator.zig");
+const cmn = @import("platform").cmn;
+const alloc = cmn.alloc;
 const utils = @import("utils.zig");
-const vec2 = @import("types.zig").vec2;
-const Vec2 = @import("types.zig").Vec2;
+const types = cmn.types;
+const vec2 = types.vec2;
+const Vec2 = types.Vec2;
 
 /// A 2D perlin noise generator. This generates "random" numbers with natural
 /// looking gradients for points that are close together.

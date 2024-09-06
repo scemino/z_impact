@@ -21,9 +21,7 @@ Z impact is more a framework than it is a library, meaning that you have to
 adhere to a structure, in code and file layout, that is prescribed by the 
 engine. You do not call Z impact, Z impact _calls you_.
 
-Games made with Z impact can be compiled for Linux, macOS, Windows (through 
-the usual hoops) and for the web with WASM. There are currently only one "platform 
-backend": Sokol and one renderer by OS: OpenGL (Linux), Metal (mac OS), Direct-X (Windows).
+Games made with Z impact can be compiled for Linux, macOS, Windows (through the usual hoops) and for the web with WASM. There are currently two "platform backends": SDL2 & Sokol and different renderers: for SDL2 platform: OpenGL and for sokol: one renderer by OS: OpenGL (Linux), Metal (mac OS), Direct-X (Windows).
 
 Z impact is a port of the orginal game engine [high_impact](https://github.com/phoboslab/high_impact/tree/master) made by phoboslab.
 
@@ -39,13 +37,20 @@ randomly generated levels
 
 To compile and run the sample game Drop
 
-### Linux/Windows/macOS
+### Linux - Windows - macOS
+
+SDL2 platform
 
 ```shell
 zig build run
 ```
 
-### Emscripten
+sokol platform
+```shell
+zig build -Dplatform=sokol run
+```
+
+### WEB
 
 ```shell
 zig build -Dtarget=wasm32-emscripten run 

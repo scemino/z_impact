@@ -1,18 +1,20 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const types = @import("types.zig");
+const cmn = platform.cmn;
+const types = cmn.types;
 const Rgba = types.Rgba;
 const Vec2 = types.Vec2;
 const Vec2i = types.Vec2i;
-const Texture = @import("texture.zig").Texture;
+const Texture = cmn.texture.Texture;
 const qoi = @import("qoi.zig");
-const BumpAllocator = @import("allocator.zig").BumpAllocator;
-const TempAllocator = @import("allocator.zig").TempAllocator;
-const bumpAlloc = @import("allocator.zig").bumpAlloc;
-const render = @import("render.zig");
+const alloc = cmn.alloc;
+const BumpAllocator = alloc.BumpAllocator;
+const TempAllocator = alloc.TempAllocator;
+const bumpAlloc = alloc.bumpAlloc;
 const ziengine = @import("engine.zig");
-const platform = @import("platform.zig");
-const options = @import("options.zig").options;
+const platform = @import("platform");
+const render = platform.render;
+const options = cmn.opt.options;
 
 var image_paths: [options.IMAGE_MAX_SOURCES][]u8 = undefined;
 var images: [options.IMAGE_MAX_SOURCES]Image = undefined;
@@ -55,7 +57,7 @@ pub const Image = struct {
         const size = Vec2i{ .x = @intCast(img.width), .y = @intCast(img.height) };
         const image_pixels = std.mem.sliceAsBytes(img.pixels);
         const texture_pixels = std.mem.bytesAsSlice(Rgba, image_pixels);
-        const texture = Texture.init(size, @alignCast(texture_pixels));
+        const texture = render.initTexture(size, @alignCast(texture_pixels));
 
         images[images_len] = .{ .size = size, .texture = texture };
         images_len += 1;

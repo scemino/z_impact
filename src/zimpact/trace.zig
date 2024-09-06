@@ -1,4 +1,5 @@
-const types = @import("types.zig");
+const cmn = @import("platform").cmn;
+const types = cmn.types;
 const Vec2 = types.Vec2;
 const Vec2i = types.Vec2i;
 const vec2 = types.vec2;

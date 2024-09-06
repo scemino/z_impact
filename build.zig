@@ -5,8 +5,6 @@ const sdl = @import("sdl");
 const Child = std.process.Child;
 var mod_zi: *std.Build.Module = undefined;
 
-var assets_step: *std.Build.Step = undefined;
-
 fn sdkPath(comptime suffix: []const u8) []const u8 {
     if (suffix[0] != '/') @compileError("relToPath requires an absolute path!");
     return comptime blk: {
@@ -109,6 +107,99 @@ pub fn build(b: *std.Build) !void {
     docs_step.dependOn(&docs.step);
     b.getInstallStep().dependOn(docs_step);
 
+    const asset_dir = "samples/zdrop/assets";
+    const assets_step = try buildAssets(b, asset_dir);
+
+    // build Z Drop sample
+    const sample: []const u8 = "zdrop";
+    if (!target.result.isWasm()) {
+        const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
+        // for native platforms, build into a regular executable
+        const exe = b.addExecutable(.{
+            .name = sample,
+            .root_source_file = b.path(b.fmt("samples/{s}/main.zig", .{sample})),
+            .target = target,
+            .optimize = optimize,
+        });
+        if (is_sdl_platform) {
+            sdl_sdk.link(exe, .dynamic);
+        }
+        exe.root_module.addImport("zimpact", mod_zi);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
+
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
+
+        run_step.dependOn(assets_step);
+        run_step.dependOn(&run_cmd.step);
+    } else {
+        try buildWeb(b, .{
+            .root_source_file = b.path("samples/zdrop/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .assets_step = assets_step,
+            .mod_zi = mod_zi,
+            .output_name = "zdrop",
+        });
+    }
+}
+
+fn convert(b: *std.Build, tool: *std.Build.Step.Compile, input: []const u8, output: []const u8) *std.Build.Step.InstallFile {
+    const tool_step = b.addRunArtifact(tool);
+    tool_step.addFileArg(b.path(input));
+    const out = tool_step.addOutputFileArg(std.fs.path.basename(output));
+    // b.getInstallStep().dependOn(&b.addInstallBinFile(out, output).step);
+    return b.addInstallBinFile(out, output);
+}
+
+pub const BuildWebOptions = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    root_source_file: ?std.Build.LazyPath = null,
+    assets_step: *std.Build.Step,
+    mod_zi: *std.Build.Module,
+    output_name: []const u8,
+};
+
+// for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
+pub fn buildWeb(b: *std.Build, options: BuildWebOptions) !void {
+    const dep_sokol = b.dependency("sokol", .{
+        .target = options.target,
+        .optimize = options.optimize,
+    });
+    const sample = b.addStaticLibrary(.{
+        .name = options.output_name,
+        .target = options.target,
+        .optimize = options.optimize,
+        .root_source_file = options.root_source_file,
+    });
+    sample.root_module.addImport("zimpact", options.mod_zi);
+    sample.root_module.addImport("sokol", dep_sokol.module("sokol"));
+
+    // create a build step which invokes the Emscripten linker
+    const emsdk = dep_sokol.builder.dependency("emsdk", .{});
+    const link_step = try sokol.emLinkStep(b, .{
+        .lib_main = sample,
+        .target = options.target,
+        .optimize = options.optimize,
+        .emsdk = emsdk,
+        .use_webgl2 = true,
+        .use_emmalloc = true,
+        .use_filesystem = true,
+        .shell_file_path = sdkPath("/web/shell.html"),
+        .extra_args = &.{ "-sUSE_OFFSET_CONVERTER=1", "--preload-file", "zig-out/bin/assets@assets" },
+    });
+    // ...and a special run step to start the web build output via 'emrun'
+    const run = sokol.emRunStep(b, .{ .name = options.output_name, .emsdk = emsdk });
+    run.step.dependOn(options.assets_step);
+    run.step.dependOn(&link_step.step);
+    b.step("run", "Run zdrop").dependOn(&run.step);
+}
+
+pub fn buildAssets(b: *std.Build, asset_dir: []const u8) !*std.Build.Step {
     // build qoiconv executable
     const qoiconv_exe = b.addExecutable(.{
         .name = "qoiconv",
@@ -117,7 +208,7 @@ pub fn build(b: *std.Build) !void {
     });
     qoiconv_exe.linkLibC();
     qoiconv_exe.addCSourceFile(.{
-        .file = b.path("tools/qoiconv.c"),
+        .file = .{ .cwd_relative = sdkPath("/tools/qoiconv.c") },
         .flags = &[_][]const u8{"-std=c99"},
     });
 
@@ -132,7 +223,7 @@ pub fn build(b: *std.Build) !void {
     });
     qoaconv_exe.linkLibC();
     qoaconv_exe.addCSourceFile(.{
-        .file = b.path("tools/qoaconv.c"),
+        .file = .{ .cwd_relative = sdkPath("/tools/qoaconv.c") },
         .flags = &[_][]const u8{"-std=c99"},
     });
 
@@ -140,11 +231,10 @@ pub fn build(b: *std.Build) !void {
     qoaconv_step.dependOn(&qoaconv_exe.step);
 
     // convert the assets and install them
-    assets_step = b.step("assets", "Build assets");
+    const assets_step = b.step("assets", "Build assets");
     assets_step.dependOn(qoiconv_step);
     assets_step.dependOn(qoaconv_step);
 
-    const asset_dir = "samples/zdrop/assets";
     if (std.fs.cwd().openDir(asset_dir, .{ .iterate = true })) |dir| {
         var walker = try dir.walk(b.allocator);
         defer walker.deinit();
@@ -175,78 +265,7 @@ pub fn build(b: *std.Build) !void {
                 else => {},
             }
         }
-
-        // build Z Drop sample
-        const sample: []const u8 = "zdrop";
-
-        if (!target.result.isWasm()) {
-            const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
-            // for native platforms, build into a regular executable
-            const exe = b.addExecutable(.{
-                .name = sample,
-                .root_source_file = b.path(b.fmt("samples/{s}/main.zig", .{sample})),
-                .target = target,
-                .optimize = optimize,
-            });
-            if (is_sdl_platform) {
-                sdl_sdk.link(exe, .dynamic);
-            }
-            exe.root_module.addImport("zimpact", mod_zi);
-
-            const run_cmd = b.addRunArtifact(exe);
-            run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
-
-            if (b.args) |args| {
-                run_cmd.addArgs(args);
-            }
-
-            run_step.dependOn(assets_step);
-            run_step.dependOn(&run_cmd.step);
-        } else {
-            try buildWeb(b, target, optimize);
-        }
     } else |_| {}
-}
 
-fn convert(b: *std.Build, tool: *std.Build.Step.Compile, input: []const u8, output: []const u8) *std.Build.Step.InstallFile {
-    const tool_step = b.addRunArtifact(tool);
-    tool_step.addFileArg(b.path(input));
-    const out = tool_step.addOutputFileArg(std.fs.path.basename(output));
-    // b.getInstallStep().dependOn(&b.addInstallBinFile(out, output).step);
-    return b.addInstallBinFile(out, output);
-}
-
-// for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
-fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !void {
-    const dep_sokol = b.dependency("sokol", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const sample = b.addStaticLibrary(.{
-        .name = "zdrop",
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("samples/zdrop/main.zig"),
-    });
-    sample.root_module.addImport("zimpact", mod_zi);
-    sample.root_module.addImport("sokol", dep_sokol.module("sokol"));
-
-    // create a build step which invokes the Emscripten linker
-    const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-    const link_step = try sokol.emLinkStep(b, .{
-        .lib_main = sample,
-        .target = target,
-        .optimize = optimize,
-        .emsdk = emsdk,
-        .use_webgl2 = true,
-        .use_emmalloc = true,
-        .use_filesystem = true,
-        .shell_file_path = "web/shell.html",
-        .extra_args = &.{ "-sUSE_OFFSET_CONVERTER=1", "--preload-file", "zig-out/bin/assets@assets" },
-    });
-    // ...and a special run step to start the web build output via 'emrun'
-    const run = sokol.emRunStep(b, .{ .name = "zdrop", .emsdk = emsdk });
-    run.step.dependOn(assets_step);
-    run.step.dependOn(&link_step.step);
-    b.step("run", "Run zdrop").dependOn(&run.step);
+    return assets_step;
 }

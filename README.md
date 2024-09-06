@@ -1,3 +1,4 @@
+[![build](https://github.com/scemino/z_impact/actions/workflows/main.yml/badge.svg)](https://github.com/scemino/z_impact/actions/workflows/main.yml)
 
     ███████╗    ██╗███╗   ███╗██████╗  █████╗  ██████╗████████╗
     ╚══▓▓▓╔╝    ▓▓║▓▓▓▓╗ ▓▓▓▓║▓▓╔══▓▓╗▓▓╔══▓▓╗▓▓╔════╝╚══▓▓╔══╝

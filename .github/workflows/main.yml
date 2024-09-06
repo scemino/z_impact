@@ -10,13 +10,14 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.13.0
-      - name: prepare-linux
-        if: runner.os == 'Linux'
+      - name: install-dependencies
         run: |
             sudo apt-get update
             sudo apt-get install libglu1-mesa-dev mesa-common-dev xorg-dev libasound-dev libsdl2-dev
-      - name: build-native
+      - name: build-native-SDL2
         run: zig build --summary all
+      - name: build-native-sokol
+        run: zig build -Dplatform=sokol --summary all
       - name: build-web
         run: zig build --summary all -Dtarget=wasm32-emscripten
   
@@ -27,12 +28,13 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.13.0
-      - name: prepare-macOS
-        if: runner.os == 'macOS'
+      - name: install-dependencies
         run: |
             brew install sdl2
-      - name: build-native
+      - name: build-native-SDL2
         run: zig build --summary all
+      - name: build-native-sokol
+        run: zig build -Dplatform=sokol --summary all
       - name: build-web
         run: zig build --summary all -Dtarget=wasm32-emscripten
   
@@ -78,7 +80,9 @@ jobs:
               }
             }
           write-mode: overwrite
-      - name: build-native
+      - name: build-native-SDL2
         run: zig build -Dtarget=${{matrix.target}} --summary all
+      - name: build-native-sokol
+        run: zig build -Dtarget=${{matrix.target}} -Dplatform=sokol --summary all
       - name: build-web
         run: zig build --summary all -Dtarget=wasm32-emscripten

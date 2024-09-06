@@ -79,8 +79,8 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const platform = b.option([]const u8, "platform", "Plaftorm to use: sdl or sokol") orelse "sdl";
-    const is_sdl_platform = !std.mem.eql(u8, platform, "sokol");
-    const sdl_sdk = sdl.init(b, "");
+    const is_sdl_platform = !target.result.isWasm() and !std.mem.eql(u8, platform, "sokol");
+    const sdl_sdk = sdl.init(b, null);
 
     _ = getZimpactModule(b, .{
         .optimize = optimize,
@@ -113,7 +113,6 @@ pub fn build(b: *std.Build) !void {
     // build Z Drop sample
     const sample: []const u8 = "zdrop";
     if (!target.result.isWasm()) {
-        const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
         // for native platforms, build into a regular executable
         const exe = b.addExecutable(.{
             .name = sample,
@@ -125,16 +124,18 @@ pub fn build(b: *std.Build) !void {
             sdl_sdk.link(exe, .dynamic);
         }
         exe.root_module.addImport("zimpact", mod_zi);
+        const install_exe = b.addInstallArtifact(exe, .{});
+        install_exe.step.dependOn(assets_step);
+        b.getInstallStep().dependOn(&install_exe.step);
 
         const run_cmd = b.addRunArtifact(exe);
-        run_cmd.step.dependOn(&b.addInstallArtifact(exe, .{}).step);
+        const run_step = b.step(b.fmt("run", .{}), b.fmt("Run {s}.zig example", .{sample}));
+        run_cmd.step.dependOn(&install_exe.step);
+        run_step.dependOn(&run_cmd.step);
 
         if (b.args) |args| {
             run_cmd.addArgs(args);
         }
-
-        run_step.dependOn(assets_step);
-        run_step.dependOn(&run_cmd.step);
     } else {
         try buildWeb(b, .{
             .root_source_file = b.path("samples/zdrop/main.zig"),

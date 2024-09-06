@@ -49,10 +49,8 @@ var transform_stack: [options.options.RENDER_TRANSFORM_STACK_SIZE]Mat3 = undefin
 var transform_stack_index: usize = 0;
 
 var quad_buffer: [options.options.RENDER_BUFFER_CAPACITY * 4]Vertex = undefined;
-var index_buffer: [options.options.RENDER_BUFFER_CAPACITY * 6]u16 = undefined;
 var tex_buffer: [options.options.RENDER_BUFFER_CAPACITY]sg.Image = undefined;
 var quad_buffer_len: usize = 0;
-var index_buffer_len: usize = 0;
 var tex_buffer_len: usize = 0;
 
 pub const BlendMode = enum { normal, lighter };
@@ -79,12 +77,25 @@ pub fn init() void {
     });
 
     // create an index buffer for the cube
+    var index_buffer: [options.options.RENDER_BUFFER_CAPACITY * 6]u16 = undefined;
+    var i: u16 = 0;
+    var j: u16 = 0;
+    while (i < options.options.RENDER_BUFFER_CAPACITY) : (i += 6) {
+        index_buffer[i + 0] = j + 3;
+        index_buffer[i + 1] = j + 1;
+        index_buffer[i + 2] = j + 0;
+        index_buffer[i + 3] = j + 3;
+        index_buffer[i + 4] = j + 2;
+        index_buffer[i + 5] = j + 1;
+        j += 4;
+    }
+
     bindings.index_buffer = sg.makeBuffer(.{
         .type = sg.BufferType.INDEXBUFFER,
-        .size = @sizeOf(u16) * options.options.RENDER_BUFFER_CAPACITY * 6,
-        .usage = sg.Usage.STREAM,
+        .data = sg.asRange(index_buffer[0..]),
         .label = "quad-indices",
     });
+
     // create a sampler object with default attributes
     bindings.fs.samplers[shd.SLOT_smp] = sg.makeSampler(.{
         .min_filter = sg.Filter.LINEAR,
@@ -146,9 +157,8 @@ pub fn frameEnd() void {
         .screen = [2]f32{ dw, dh },
     };
 
-    if (quad_buffer_len > 0 and index_buffer_len > 0) {
+    if (quad_buffer_len > 0) {
         sg.updateBuffer(bindings.vertex_buffers[0], sg.asRange(quad_buffer[0..quad_buffer_len]));
-        sg.updateBuffer(bindings.index_buffer, sg.asRange(index_buffer[0..index_buffer_len]));
     }
 
     sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
@@ -218,14 +228,6 @@ pub fn drawQuad(quad: Quad, texture_handle: Texture) void {
     quad_buffer[quad_buffer_len] = q.vertices[2]; quad_buffer_len += 1;
     quad_buffer[quad_buffer_len] = q.vertices[3]; quad_buffer_len += 1;
     // zig fmt: on
-
-    const indices = [_]u16{
-        0, 1, 2, 0, 2, 3,
-    };
-    for (0..6) |i| {
-        index_buffer[index_buffer_len + i] = @as(u16, @intCast(quad_buffer_len - 4)) + indices[i];
-    }
-    index_buffer_len += 6;
 }
 
 fn flush() void {
@@ -241,7 +243,6 @@ fn flush() void {
         j += 6;
     }
     quad_buffer_len = 0;
-    index_buffer_len = 0;
     tex_buffer_len = 0;
 }
 

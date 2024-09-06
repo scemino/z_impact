@@ -77,7 +77,7 @@ double click from your local copy.
 
 ## Libraries used
 
-- Sokol App, Audio and Time: https://github.com/floooh/sokol
+- Sokol App, Audio and Time: https://github.com/floooh/sokol-zig
 - stb_image.h and stb_image_write.h https://github.com/nothings/stb
 - QOI Image Format: https://github.com/phoboslab/qoi
 - QOA Audio Format: https://github.com/phoboslab/qoa

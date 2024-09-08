@@ -190,7 +190,7 @@ pub const EntityVtab = struct {
     // zig fmt: on
 };
 
-inline fn vtab(ent: *Entity) EntityVtab {
+noinline fn vtab(ent: *Entity) EntityVtab {
     const tag = std.meta.activeTag(ent.entity);
     return engine.entity_vtab[@intFromEnum(tag)];
 }

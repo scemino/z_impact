@@ -81,6 +81,7 @@ double click from your local copy.
 - stb_image.h and stb_image_write.h https://github.com/nothings/stb
 - QOI Image Format: https://github.com/phoboslab/qoi
 - QOA Audio Format: https://github.com/phoboslab/qoa
+- SDL.zig: https://github.com/ikskuh/SDL.zig
 
 ## License
 

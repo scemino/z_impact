@@ -94,7 +94,6 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/zimpact/zimpact.zig"),
         .target = target,
         .optimize = optimize,
-        .strip = false,
     });
     b.installArtifact(lib);
 
@@ -122,7 +121,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         });
         if (is_sdl_platform) {
-            sdl_sdk.link(exe, .static);
+            sdl_sdk.link(exe, .dynamic);
         }
         exe.root_module.addImport("zimpact", mod_zi);
         const install_exe = b.addInstallArtifact(exe, .{});

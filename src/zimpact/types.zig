@@ -60,6 +60,10 @@ pub const Vec2 = struct {
     pub fn transform(v: Vec2, m: Mat3) Vec2 {
         return vec2(m.a * v.x + m.b * v.y + m.tx, m.c * v.x + m.d * v.y + m.ty);
     }
+
+    pub fn cross(a: Vec2, b: Vec2) f32 {
+        return a.x * b.y - a.y * b.x;
+    }
 };
 
 pub const Vec2i = struct {

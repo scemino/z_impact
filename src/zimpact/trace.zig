@@ -1,3 +1,4 @@
+const std = @import("std");
 const cmn = @import("platform").cmn;
 const types = cmn.types;
 const Vec2 = types.Vec2;
@@ -6,39 +7,101 @@ const vec2 = types.vec2;
 const vec2i = types.vec2i;
 const Map = @import("map.zig").Map;
 
-// const SlopeDef = struct {
-// 	 start: Vec2,
-// 	 dir: Vec2,
-// 	 normal: Vec2,
-// 	 solid: bool,
-// } ;
+const SlopeDef = struct {
+    start: Vec2 = vec2(0, 0),
+    dir: Vec2 = vec2(0, 0),
+    normal: Vec2 = vec2(0, 0),
+    solid: bool = false,
+};
 
-// const slope_definitions = []SlopeDef {
-// 	 [ 5] = SLOPE(0,1, 1,M, SOLID), [ 6] = SLOPE(0,M, 1,N, SOLID), [ 7] = SLOPE(0,N, 1,0, SOLID), //     15 NE
-// 	 [ 3] = SLOPE(0,1, 1,H, SOLID), [ 4] = SLOPE(0,H, 1,0, SOLID), //     22 NE
-// 	 [ 2] = SLOPE(0,1, 1,0, SOLID), //     45 NE
-// 	 [10] = SLOPE(H,1, 1,0, SOLID), [21] = SLOPE(0,1, H,0, SOLID), //     67 NE
-// 	 [32] = SLOPE(M,1, 1,0, SOLID), [43] = SLOPE(N,1, M,0, SOLID), [54] = SLOPE(0,1, N,0, SOLID), //     75 NE
-// 	 [27] = SLOPE(0,0, 1,N, SOLID), [28] = SLOPE(0,N, 1,M, SOLID), [29] = SLOPE(0,M, 1,1, SOLID), //     15 SE
-// 	 [25] = SLOPE(0,0, 1,H, SOLID), [26] = SLOPE(0,H, 1,1, SOLID), //     22 SE
-// 	 [24] = SLOPE(0,0, 1,1, SOLID), //     45 SE */
-// 	 [11] = SLOPE(0,0, H,1, SOLID), [22] = SLOPE(H,0, 1,1, SOLID), //     67 SE
-// 	 [33] = SLOPE(0,0, N,1, SOLID), [44] = SLOPE(N,0, M,1, SOLID), [55] = SLOPE(M,0, 1,1, SOLID), //     75 SE
-// 	 [16] = SLOPE(1,N, 0,0, SOLID), [17] = SLOPE(1,M, 0,N, SOLID), [18] = SLOPE(1,1, 0,M, SOLID), //     15 NW
-// 	 [14] = SLOPE(1,H, 0,0, SOLID), [15] = SLOPE(1,1, 0,H, SOLID), //     22 NW
-// 	 [13] = SLOPE(1,1, 0,0, SOLID), //     45 NW
-// 	 [ 8] = SLOPE(H,1, 0,0, SOLID), [19] = SLOPE(1,1, H,0, SOLID), //     67 NW
-// 	 [30] = SLOPE(N,1, 0,0, SOLID), [41] = SLOPE(M,1, N,0, SOLID), [52] = SLOPE(1,1, M,0, SOLID), //     75 NW
-// 	 [38] = SLOPE(1,M, 0,1, SOLID), [39] = SLOPE(1,N, 0,M, SOLID), [40] = SLOPE(1,0, 0,N, SOLID), //     15 SW
-// 	 [36] = SLOPE(1,H, 0,1, SOLID), [37] = SLOPE(1,0, 0,H, SOLID), //     22 SW
-// 	 [35] = SLOPE(1,0, 0,1, SOLID), //     45 SW
-// 	 [ 9] = SLOPE(1,0, H,1, SOLID), [20] = SLOPE(H,0, 0,1, SOLID), //     67 SW
-// 	 [31] = SLOPE(1,0, M,1, SOLID), [42] = SLOPE(M,0, N,1, SOLID), [53] = SLOPE(N,0, 0,1, SOLID), //     75 SW
-// 	 [12] = SLOPE(0,0, 1,0, ONE_WAY), // One way N
-// 	 [23] = SLOPE(1,1, 0,1, ONE_WAY), // One way S
-// 	 [34] = SLOPE(1,0, 1,1, ONE_WAY), // One way E
-// 	 [45] = SLOPE(0,1, 0,0, ONE_WAY)  // One way W
-// };
+// Define all sloped tiles by their start (x,y) and end (x,y) coordinates in
+// normalized (0..1) space. We compute the direction of the slope and the
+// slope's normal from this.
+
+fn slopeLen(x: f32, y: f32) f32 {
+    return std.math.sqrt(x * x + y * y);
+}
+
+fn slopeNormal(x: f32, y: f32) Vec2 {
+    return vec2(y / slopeLen(x, y), -x / slopeLen(x, y));
+}
+
+fn slopeDef(sx: f32, sy: f32, ex: f32, ey: f32, solid: bool) SlopeDef {
+    return .{
+        .start = vec2(sx, sy),
+        .dir = vec2(ex - sx, ey - sy),
+        .normal = slopeNormal(ex - sx, ey - sy),
+        .solid = solid,
+    };
+}
+
+// Corner points for all slope tiles are either at 0.0, 1.0, 0.5, 0.333 or 0.666
+// Defining these here as H, N and M hopefully makes this a bit easier to read.
+
+const H = (1.0 / 2.0);
+const N = (1.0 / 3.0);
+const M = (2.0 / 3.0);
+const SOLID = true;
+const ONE_WAY = false;
+
+const slope_definitions = [_]SlopeDef{
+    .{}, // 0
+    .{}, // 1
+    slopeDef(0, 1, 1, 0, SOLID), //     45 NE
+    slopeDef(0, 1, 1, H, SOLID),
+    slopeDef(0, H, 1, 0, SOLID), //     22 NE
+    slopeDef(0, 1, 1, M, SOLID),
+    slopeDef(0, M, 1, N, SOLID),
+    slopeDef(0, N, 1, 0, SOLID), //     15 NE
+    slopeDef(H, 1, 0, 0, SOLID),
+    slopeDef(1, 0, H, 1, SOLID),
+    slopeDef(H, 1, 1, 0, SOLID),
+    slopeDef(0, 0, H, 1, SOLID),
+    slopeDef(0, 0, 1, 0, ONE_WAY), // One way N
+    slopeDef(1, 1, 0, 0, SOLID), //     45 NW
+    slopeDef(1, H, 0, 0, SOLID),
+    slopeDef(1, 1, 0, H, SOLID), //     22 NW
+    slopeDef(1, N, 0, 0, SOLID),
+    slopeDef(1, M, 0, N, SOLID),
+    slopeDef(1, 1, 0, M, SOLID), //     15 NW
+    slopeDef(1, 1, H, 0, SOLID), //     67 NW
+    slopeDef(H, 0, 0, 1, SOLID), //     67 SW
+    slopeDef(0, 1, H, 0, SOLID), //     67 NE
+    slopeDef(H, 0, 1, 1, SOLID), //     67 SE
+    slopeDef(1, 1, 0, 1, ONE_WAY), // One way S
+    slopeDef(0, 0, 1, 1, SOLID), //     45 SE */
+    slopeDef(0, 0, 1, H, SOLID),
+    slopeDef(0, H, 1, 1, SOLID), //     22 SE
+    slopeDef(0, 0, 1, N, SOLID),
+    slopeDef(0, N, 1, M, SOLID),
+    slopeDef(0, M, 1, 1, SOLID), //     15 SE
+    slopeDef(N, 1, 0, 0, SOLID),
+    slopeDef(1, 0, M, 1, SOLID),
+    slopeDef(M, 1, 1, 0, SOLID),
+    slopeDef(0, 0, N, 1, SOLID),
+    slopeDef(1, 0, 1, 1, ONE_WAY), // One way E
+    slopeDef(1, 0, 0, 1, SOLID), //     45 SW
+    slopeDef(1, H, 0, 1, SOLID),
+    slopeDef(1, 0, 0, H, SOLID), //     22 SW
+    slopeDef(1, M, 0, 1, SOLID),
+    slopeDef(1, N, 0, M, SOLID),
+    slopeDef(1, 0, 0, N, SOLID), //     15 SW
+    slopeDef(M, 1, N, 0, SOLID),
+    slopeDef(M, 0, N, 1, SOLID),
+    slopeDef(N, 1, M, 0, SOLID),
+    slopeDef(N, 0, M, 1, SOLID),
+    slopeDef(0, 1, 0, 0, ONE_WAY), // One way W
+    .{}, // 46
+    .{}, // 47
+    .{}, // 48
+    .{}, // 49
+    .{}, // 50
+    .{}, // 51
+    slopeDef(1, 1, M, 0, SOLID), //     75 NW
+    slopeDef(N, 0, 0, 1, SOLID), //     75 SW
+    slopeDef(0, 1, N, 0, SOLID), //     75 NE
+    slopeDef(M, 0, 1, 1, SOLID), //     75 SE
+};
 
 pub const Trace = struct {
     /// The tile that was hit. 0 if no hit.
@@ -150,8 +213,7 @@ fn checkTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, res: 
     } else if (tile == 1) {
         resolveFullTile(map, pos, vel, size, tile_pos, res);
     } else {
-        unreachable;
-        //TODO: resolve_sloped_tile(map, pos, vel, size, tile_pos, tile, res);
+        resolveSlopedTile(map, pos, vel, size, tile_pos, tile, res);
     }
 }
 
@@ -197,142 +259,142 @@ fn resolveFullTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i,
     res.pos = rp;
 }
 
-// fn resolveSlopedTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, tile: i32, res: *Trace) void {
-//     if (tile < 2 or tile >= slope_definitions.len) {
-//         return;
-//     }
+fn resolveSlopedTile(map: *Map, pos: Vec2, vel: Vec2, size: Vec2, tile_pos: Vec2i, tile: i32, res: *Trace) void {
+    if (tile < 2 or tile >= slope_definitions.len) {
+        return;
+    }
 
-//     const slope = &slope_definitions[tile];
+    const slope = &slope_definitions[@intCast(tile)];
 
-//     // Transform the slope line's starting point (s) and line's direction (d)
-//     // into world space coordinates.
-//     const tile_pos_px = types.fromVec2i(tile_pos).mulf(map.tile_size);
+    // Transform the slope line's starting point (s) and line's direction (d)
+    // into world space coordinates.
+    const tile_pos_px = types.fromVec2i(tile_pos).mulf(@floatFromInt(map.tile_size));
 
-//     const ss = slope.start.mulf(map.tile_size);
-//     const sd = slope.dir.mulf(map.tile_size);
-//     const local_pos = pos.sub(tile_pos_px);
+    const ss = slope.start.mulf(@floatFromInt(map.tile_size));
+    const sd = slope.dir.mulf(@floatFromInt(map.tile_size));
+    const local_pos = pos.sub(tile_pos_px);
 
-//     // Do a line vs. line collision with the object's velocity and the slope
-//     // itself. This still has problems with precision: When we're moving very
-//     // slowly along the slope, we might slip behind it.
-//     // FIXME: maybe the better approach would be to treat every sloped tile as
-//     // a triangle defined by 3 infinite lines. We could quickly check if the
-//     // point is within it - but we would still need to determine from which side
-//     // we're moving into the triangle.
+    // Do a line vs. line collision with the object's velocity and the slope
+    // itself. This still has problems with precision: When we're moving very
+    // slowly along the slope, we might slip behind it.
+    // FIXME: maybe the better approach would be to treat every sloped tile as
+    // a triangle defined by 3 infinite lines. We could quickly check if the
+    // point is within it - but we would still need to determine from which side
+    // we're moving into the triangle.
 
-//     const epsilon = 0.001;
-//     const determinant = vel.cross(sd);
+    const epsilon = 0.001;
+    const determinant = vel.cross(sd);
 
-//     if (determinant < -epsilon) {
-//         const corner =
-//             vec2_sub(local_pos, ss).add(vec2(if (sd.y < 0) size.x else 0, if (sd.x > 0) size.y else 0));
+    if (determinant < -epsilon) {
+        const corner =
+            local_pos.sub(ss).add(vec2(if (sd.y < 0) size.x else 0, if (sd.x > 0) size.y else 0));
 
-//         const point_at_slope = vel.cross(corner) / determinant;
-//         const point_at_vel = sd.cross(corner) / determinant;
+        const point_at_slope = vel.cross(corner) / determinant;
+        const point_at_vel = sd.cross(corner) / determinant;
 
-//         // Are we in front of the slope and moving into it?
-//         if (point_at_vel > -epsilon and
-//             point_at_vel < 1 + epsilon and
-//             point_at_slope > -epsilon and
-//             point_at_slope < 1 + epsilon)
-//         {
-//             // Is this an earlier point than one that we already collided with?
-//             if (point_at_vel <= res.length) {
-//                 res.tile = tile;
-//                 res.tile_pos = tile_pos;
-//                 res.length = point_at_vel;
-//                 res.normal = slope.normal;
-//                 res.pos = vec2_add(pos, vec2_mulf(vel, point_at_vel));
-//             }
-//             return;
-//         }
-//     }
-//     // Is this a non-solid (one-way) tile and we're coming from the wrong side?
-//     if (!slope.solid and (determinant > 0 or sd.x * sd.y != 0)) {
-//         return;
-//     }
+        // Are we in front of the slope and moving into it?
+        if (point_at_vel > -epsilon and
+            point_at_vel < 1 + epsilon and
+            point_at_slope > -epsilon and
+            point_at_slope < 1 + epsilon)
+        {
+            // Is this an earlier point than one that we already collided with?
+            if (point_at_vel <= res.length) {
+                res.tile = tile;
+                res.tile_pos = tile_pos;
+                res.length = point_at_vel;
+                res.normal = slope.normal;
+                res.pos = pos.add(vel.mulf(point_at_vel));
+            }
+            return;
+        }
+    }
+    // Is this a non-solid (one-way) tile and we're coming from the wrong side?
+    if (!slope.solid and (determinant > 0 or sd.x * sd.y != 0)) {
+        return;
+    }
 
-//     // We did not collide with the slope itself, but we still have to check
-//     // if we collide with the slope's corners or the remaining sides of the
-//     // tile.
+    // We did not collide with the slope itself, but we still have to check
+    // if we collide with the slope's corners or the remaining sides of the
+    // tile.
 
-//     // Figure out the potential collision points for a horizontal or
-//     // vertical collision and calculate the min and max coords that will
-//     // still collide with the tile.
+    // Figure out the potential collision points for a horizontal or
+    // vertical collision and calculate the min and max coords that will
+    // still collide with the tile.
 
-//     var rp: Vec2 = undefined;
-//     var min: Vec2 = undefined;
-//     var max: Vec2 = undefined;
-//     var length: f32 = 1.0;
+    var rp: Vec2 = undefined;
+    var min: Vec2 = undefined;
+    var max: Vec2 = undefined;
+    var length: f32 = 1.0;
 
-//     if (sd.y >= 0) {
-//         // left tile edge
-//         min.x = -size.x - epsilon;
+    if (sd.y >= 0) {
+        // left tile edge
+        min.x = -size.x - epsilon;
 
-//         // left or right slope corner?
-//         max.x = (if (vel.y > 0) ss.x else ss.x + sd.x) - epsilon;
-//         rp.x = if (vel.x > 0) min.x else @max(ss.x, ss.x + sd.x);
-//     } else {
-//         // left or right slope corner?
-//         min.x = (if (vel.y > 0) ss.x + sd.x else ss.x) - size.x + epsilon;
+        // left or right slope corner?
+        max.x = (if (vel.y > 0) ss.x else ss.x + sd.x) - epsilon;
+        rp.x = if (vel.x > 0) min.x else @max(ss.x, ss.x + sd.x);
+    } else {
+        // left or right slope corner?
+        min.x = (if (vel.y > 0) ss.x + sd.x else ss.x) - size.x + epsilon;
 
-//         // right tile edge
-//         max.x = map.tile_size + epsilon;
-//         rp.x = if (vel.x > 0) @min(ss.x, ss.x + sd.x) - size.x else max.x;
-//     }
+        // right tile edge
+        max.x = @as(f32, @floatFromInt(map.tile_size)) + epsilon;
+        rp.x = if (vel.x > 0) @min(ss.x, ss.x + sd.x) - size.x else max.x;
+    }
 
-//     if (sd.x > 0) {
-//         // top or bottom slope corner?
-//         min.y = (if (vel.x > 0) ss.y else ss.y + sd.y) - size.y + epsilon;
+    if (sd.x > 0) {
+        // top or bottom slope corner?
+        min.y = (if (vel.x > 0) ss.y else ss.y + sd.y) - size.y + epsilon;
 
-//         // bottom tile edge
-//         max.y = map.tile_size + epsilon;
-//         rp.y = if (vel.y > 0) @min(ss.y, ss.y + sd.y) - size.y else max.y;
-//     } else {
-//         // top tile edge
-//         min.y = -size.y - epsilon;
+        // bottom tile edge
+        max.y = @as(f32, @floatFromInt(map.tile_size)) + epsilon;
+        rp.y = if (vel.y > 0) @min(ss.y, ss.y + sd.y) - size.y else max.y;
+    } else {
+        // top tile edge
+        min.y = -size.y - epsilon;
 
-//         // top or bottom slope corner?
-//         max.y = (if (vel.x > 0) ss.y + sd.y else ss.y) - epsilon;
-//         rp.y = if (vel.y > 0) min.y else max(ss.y, ss.y + sd.y);
-//     }
+        // top or bottom slope corner?
+        max.y = (if (vel.x > 0) ss.y + sd.y else ss.y) - epsilon;
+        rp.y = if (vel.y > 0) min.y else @max(ss.y, ss.y + sd.y);
+    }
 
-//     // Figure out if this is a horizontal or vertical collision. This
-//     // step is similar to what we do with full tile collisions.
+    // Figure out if this is a horizontal or vertical collision. This
+    // step is similar to what we do with full tile collisions.
 
-//     const sign = vel.cross(rp.sub(local_pos)) * vel.x * vel.y;
-//     if (sign < 0 or vel.y == 0) {
-//         // Horizontal collision (x direction, left or right edge)
-//         length = fabsf((local_pos.x - rp.x) / vel.x);
-//         rp.y = local_pos.y + length * vel.y;
+    const sign = vel.cross(rp.sub(local_pos)) * vel.x * vel.y;
+    if (sign < 0 or vel.y == 0) {
+        // Horizontal collision (x direction, left or right edge)
+        length = @abs((local_pos.x - rp.x) / vel.x);
+        rp.y = local_pos.y + length * vel.y;
 
-//         if (rp.y >= max.y or rp.y <= min.y or
-//             length > res.length or
-//             (!slope.solid and sd.y == 0))
-//         {
-//             return;
-//         }
+        if (rp.y >= max.y or rp.y <= min.y or
+            length > res.length or
+            (!slope.solid and sd.y == 0))
+        {
+            return;
+        }
 
-//         res.normal.x = (if (vel.x > 0) -1 else 1);
-//         res.normal.y = 0;
-//     } else {
-//         // Vertical collision (y direction, top or bottom edge)
-//         length = fabsf((local_pos.y - rp.y) / vel.y);
-//         rp.x = local_pos.x + length * vel.x;
+        res.normal.x = (if (vel.x > 0) -1 else 1);
+        res.normal.y = 0;
+    } else {
+        // Vertical collision (y direction, top or bottom edge)
+        length = @abs((local_pos.y - rp.y) / vel.y);
+        rp.x = local_pos.x + length * vel.x;
 
-//         if (rp.x >= max.x or rp.x <= min.x or
-//             length > res.length or
-//             (!slope.solid and sd.x == 0))
-//         {
-//             return;
-//         }
+        if (rp.x >= max.x or rp.x <= min.x or
+            length > res.length or
+            (!slope.solid and sd.x == 0))
+        {
+            return;
+        }
 
-//         res.normal.x = 0;
-//         res.normal.y = (if (vel.y > 0) -1 else 1);
-//     }
+        res.normal.x = 0;
+        res.normal.y = (if (vel.y > 0) -1 else 1);
+    }
 
-//     res.tile = tile;
-//     res.tile_pos = tile_pos;
-//     res.length = length;
-//     res.pos = vec2_add(rp, tile_pos_px);
-// }
+    res.tile = tile;
+    res.tile_pos = tile_pos;
+    res.length = length;
+    res.pos = rp.add(tile_pos_px);
+}

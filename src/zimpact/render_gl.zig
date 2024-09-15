@@ -25,41 +25,6 @@ const InternalTexture = struct {
 
 var textures: [options.options.RENDER_TEXTURES_MAX]InternalTexture = undefined;
 
-const SHADER_GAME_VS =
-    \\#version 140
-    \\in vec4 pos;
-    \\in vec2 uv;
-    \\in vec4 color;
-    \\out vec4 v_color;
-    \\out vec2 v_uv;
-    \\
-    \\uniform vec2 screen;
-    \\
-    \\void main(void) {
-    \\	v_color = color;
-    \\	v_uv = uv;
-    \\	gl_Position = vec4(
-    \\		floor(pos.xy + 0.5) * (vec2(2,-2)/screen.xy) + vec2(-1.0,1.0),
-    \\		0.0, 1.0
-    \\	);
-    \\}
-;
-
-const SHADER_GAME_FS =
-    \\#version 140
-    \\in vec4 v_color;
-    \\in vec2 v_uv;
-    \\out vec4 fragment_color_output;
-    \\
-    \\uniform sampler2D u_texture;
-    \\
-    \\void main(void) {
-    \\	vec4 tex_color = texture(u_texture, v_uv);
-    \\	vec4 color = tex_color * v_color;
-    \\	fragment_color_output = color;
-    \\}
-;
-
 var logical_size: Vec2i = undefined;
 var screen_scale: f32 = 0.0;
 var draw_calls: usize = 0;
@@ -165,7 +130,7 @@ inline fn bind_va_color(index: gl.GLuint, TContainer: type, member: []const u8, 
 fn shaderGameInit() *PrgGame {
     var s = alloc.bumpCreate(PrgGame) catch @panic("Failed to create game shader");
 
-    s.program = createProgram(SHADER_GAME_VS, SHADER_GAME_FS);
+    s.program = createProgram(@embedFile("shader_vs.glsl"), @embedFile("shader_fs.glsl"));
     s.uniform.screen = gl.getUniformLocation(s.program, "screen");
 
     s.attribute.pos = gl.getAttribLocation(s.program, "pos");

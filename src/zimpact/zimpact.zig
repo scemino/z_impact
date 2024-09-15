@@ -16,7 +16,7 @@ pub const scene = @import("scene.zig");
 pub const sound = @import("sound.zig");
 pub const trace = @import("trace.zig");
 pub const types = cmn.types;
-pub const utils = @import("utils.zig");
+pub const utils = cmn.utils;
 
 // functions
 pub const anim = @import("anim.zig").anim;

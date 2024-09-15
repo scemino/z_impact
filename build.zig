@@ -13,8 +13,14 @@ fn sdkPath(comptime suffix: []const u8) []const u8 {
     };
 }
 
+pub const PlatformAndRenderer = enum {
+    sdl,
+    sdl_soft,
+    sokol,
+};
+
 pub const PlatformCreateOptions = struct {
-    sdl_platform: bool = true,
+    platform_renderer: PlatformAndRenderer = .sdl,
     target: std.Build.ResolvedTarget = undefined,
     optimize: std.builtin.OptimizeMode = undefined,
 };
@@ -31,27 +37,40 @@ fn getPlatformModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.M
     });
 
     var mod_platform: *std.Build.Module = undefined;
-    if (options.sdl_platform) {
-        const sdl_sdk = sdl.init(b, "");
-        // SDL platform module
-        mod_platform = b.createModule(.{
-            .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl.zig") },
-            .target = target,
-            .optimize = optimize,
-        });
-        mod_platform.addImport("sdl", sdl_sdk.getNativeModule());
-    } else {
-        // sokol platform module
-        mod_platform = b.createModule(.{
-            .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sokol.zig") },
-            .target = target,
-            .optimize = optimize,
-        });
-        const dep_sokol = b.dependency("sokol", .{
-            .target = target,
-            .optimize = optimize,
-        });
-        mod_platform.addImport("sokol", dep_sokol.module("sokol"));
+    switch (options.platform_renderer) {
+        .sdl_soft => {
+            const sdl_sdk = sdl.init(b, "");
+            // SDL platform module
+            mod_platform = b.createModule(.{
+                .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl_soft.zig") },
+                .target = target,
+                .optimize = optimize,
+            });
+            mod_platform.addImport("sdl", sdl_sdk.getNativeModule());
+        },
+        .sdl => {
+            const sdl_sdk = sdl.init(b, "");
+            // SDL platform module
+            mod_platform = b.createModule(.{
+                .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl.zig") },
+                .target = target,
+                .optimize = optimize,
+            });
+            mod_platform.addImport("sdl", sdl_sdk.getNativeModule());
+        },
+        .sokol => {
+            // sokol platform module
+            mod_platform = b.createModule(.{
+                .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sokol.zig") },
+                .target = target,
+                .optimize = optimize,
+            });
+            const dep_sokol = b.dependency("sokol", .{
+                .target = target,
+                .optimize = optimize,
+            });
+            mod_platform.addImport("sokol", dep_sokol.module("sokol"));
+        },
     }
     mod_platform.addImport("common", mod_common);
     return mod_platform;
@@ -60,7 +79,7 @@ fn getPlatformModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.M
 pub fn getZimpactModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.Module {
     var mod_platform: *std.Build.Module = undefined;
     mod_platform = getPlatformModule(b, .{
-        .sdl_platform = options.sdl_platform,
+        .platform_renderer = options.platform_renderer,
         .target = options.target,
         .optimize = options.optimize,
     });
@@ -78,14 +97,21 @@ pub fn getZimpactModule(b: *std.Build, options: PlatformCreateOptions) *std.Buil
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const platform = b.option([]const u8, "platform", "Plaftorm to use: sdl or sokol") orelse "sdl";
-    const is_sdl_platform = !target.result.isWasm() and !std.mem.eql(u8, platform, "sokol");
+    const platform = b.option([]const u8, "platform", "Plaftorm to use: sdl, sdl_soft or sokol") orelse "sdl";
+    var platform_renderer: PlatformAndRenderer = .sdl;
+    if (target.result.isWasm()) {
+        platform_renderer = .sdl;
+    } else if (std.mem.eql(u8, platform, "sokol")) {
+        platform_renderer = .sokol;
+    } else if (std.mem.eql(u8, platform, "sdl_soft")) {
+        platform_renderer = .sdl_soft;
+    }
     const sdl_sdk = sdl.init(b, null);
 
     _ = getZimpactModule(b, .{
         .optimize = optimize,
         .target = target,
-        .sdl_platform = is_sdl_platform,
+        .platform_renderer = platform_renderer,
     });
 
     // build lib
@@ -120,7 +146,7 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
         });
-        if (is_sdl_platform) {
+        if (platform_renderer == .sdl or platform_renderer == .sdl_soft) {
             sdl_sdk.link(exe, .dynamic);
         }
         exe.root_module.addImport("zimpact", mod_zi);

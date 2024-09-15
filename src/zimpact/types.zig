@@ -172,10 +172,33 @@ pub const Rgba = struct {
     pub inline fn toInt(self: Rgba) u32 {
         return std.mem.readInt(u32, self.components, .little);
     }
+
+    pub fn blend(in: Rgba, out: Rgba) Rgba {
+        const in_a: u32 = 255 - out.a();
+        return rgba(
+            @truncate((@as(u32, in.r()) * @as(u32, in_a) + @as(u32, out.r()) * @as(u32, out.a())) >> 8),
+            @truncate((@as(u32, in.g()) * @as(u32, in_a) + @as(u32, out.g()) * @as(u32, out.a())) >> 8),
+            @truncate((@as(u32, in.b()) * @as(u32, in_a) + @as(u32, out.b()) * @as(u32, out.a())) >> 8),
+            1,
+        );
+    }
+
+    pub fn mix(c1: Rgba, c2: Rgba) Rgba {
+        return rgba(
+            @truncate((@as(u32, c1.r()) * @as(u32, c2.r())) >> 8),
+            @truncate((@as(u32, c1.g()) * @as(u32, c2.g())) >> 8),
+            @truncate((@as(u32, c1.b()) * @as(u32, c2.b())) >> 8),
+            @truncate((@as(u32, c1.a()) * @as(u32, c2.a())) >> 8),
+        );
+    }
 };
 
 pub fn white() Rgba {
     return .{ .components = .{ 255, 255, 255, 255 } };
+}
+
+pub fn transparent() Rgba {
+    return .{ .components = .{ 0, 0, 0, 0 } };
 }
 
 pub fn rgba(r: u8, g: u8, b: u8, a: u8) Rgba {

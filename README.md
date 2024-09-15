@@ -40,10 +40,16 @@ To compile and run the sample game Drop
 
 ### Linux - Windows - macOS
 
-SDL2 platform
+SDL2 platform + OpenGL renderer
 
 ```shell
 zig build run
+```
+
+SDL2 platform + software renderer
+
+```shell
+zig build -Dplatform=sdl_soft run
 ```
 
 sokol platform

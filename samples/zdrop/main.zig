@@ -26,6 +26,13 @@ pub const zi_options = .{
 };
 
 fn init() void {
+    // Gamepad
+    zi.input.bind(.INPUT_GAMEPAD_DPAD_LEFT, player.A_LEFT);
+    zi.input.bind(.INPUT_GAMEPAD_DPAD_RIGHT, player.A_RIGHT);
+    zi.input.bind(.INPUT_GAMEPAD_L_STICK_LEFT, player.A_LEFT);
+    zi.input.bind(.INPUT_GAMEPAD_L_STICK_RIGHT, player.A_RIGHT);
+    zi.input.bind(.INPUT_GAMEPAD_X, player.A_START);
+
     // Keyboard
     zi.input.bind(.INPUT_KEY_LEFT, player.A_LEFT);
     zi.input.bind(.INPUT_KEY_RIGHT, player.A_RIGHT);

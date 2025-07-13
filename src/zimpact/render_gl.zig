@@ -99,7 +99,7 @@ fn createProgram(vs_source: [*c]const u8, fs_source: [*c]const u8) gl.GLuint {
 
 inline fn bind_va_f(index: gl.GLuint, TContainer: type, member: []const u8, start: gl.GLsizei) void {
     var field_size: usize = 0;
-    inline for (@typeInfo(TContainer).Struct.fields) |field| {
+    inline for (@typeInfo(TContainer).@"struct".fields) |field| {
         if (std.mem.eql(u8, field.name, member)) {
             field_size = @sizeOf(field.type);
             break;

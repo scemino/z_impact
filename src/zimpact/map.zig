@@ -59,18 +59,18 @@ pub const Map = struct {
     /// and represent a blank tile. Index 1 will draw the 0th tile from the tileset.
     /// ```json
     /// {
-    /// 	"name": "background",
-    /// 	"width": 4,
-    /// 	"height": 2,
-    /// 	"tilesetName": "assets/tiles/biolab.qoi",
-    /// 	"repeat": true,
-    /// 	"distance": 1.0,
-    /// 	"tilesize": 8,
-    /// 	"foreground": false,
-    /// 	"data": [
-    /// 		[0,1,2,3],
-    /// 		[3,2,1,0],
-    /// 	]
+    ///     "name": "background",
+    ///     "width": 4,
+    ///     "height": 2,
+    ///     "tilesetName": "assets/tiles/biolab.qoi",
+    ///     "repeat": true,
+    ///     "distance": 1.0,
+    ///     "tilesize": 8,
+    ///     "foreground": false,
+    ///     "data": [
+    ///         [0,1,2,3],
+    ///         [3,2,1,0],
+    ///     ]
     /// }
     /// ```
     pub fn initFromJson(root: Value) *Map {

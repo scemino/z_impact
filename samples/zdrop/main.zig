@@ -14,7 +14,7 @@ const player = @import("entities/player.zig");
 /// The values here (particularly resource limits) have been dialed in to this
 /// particular game. Increase them as needed. Allocating a few GB and thousands
 /// of entities is totally fine.
-pub const zi_options = .{
+pub const zi_options: zi.options.Options = .{
     .ALLOC_SIZE = (2 * 1024 * 1024),
     .ALLOC_TEMP_OBJECTS_MAX = 8,
     .ENTITIES_MAX = 64,

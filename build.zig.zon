@@ -1,15 +1,15 @@
 .{
-    .name = "zimpact",
+    .name = .zimpact,
     .version = "0.1.0",
-    .minimum_zig_version = "0.13.0",
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .sokol = .{
-            .url = "git+https://github.com/floooh/sokol-zig.git#f48d2bd051a282e01dbf463d0f9a59daefd09201",
-            .hash = "1220f044556b4cbe92f797dece26d1418bbf67f8d7311e1b0040049690d1044b66e8",
+            .url = "git+https://github.com/floooh/sokol-zig.git#251946321ba77c2536bbb409e7f4aa0ea51e5281",
+            .hash = "sokol-0.1.0-pb1HK_yULQBF55EJMaQt6_zNksfMvo41FDzMXKaQQEMX",
         },
         .sdl = .{
-            .url = "git+https://github.com/ikskuh/SDL.zig.git#676bfe080b683fdb9fb15e6e19a80b162b5ae3ca",
-            .hash = "122038b9b453ff147ae669153df58e110844f249376f461581c26f85753d5764ef4d",
+            .url = "git+https://github.com/ikskuh/SDL.zig.git#424ff5f9245ef352e4c508c77ddaeed2f46bd605",
+            .hash = "SDL2-0.0.0-yMCQigakBADGJHtb2ljt13P_cCnG8Y819HRnIibNVPFk",
         },
     },
     .paths = .{
@@ -21,4 +21,5 @@
         "LICENSE",
         "README.md",
     },
+    .fingerprint = 0xa0bf31bfb5744d52,
 }

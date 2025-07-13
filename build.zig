@@ -39,7 +39,7 @@ fn getPlatformModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.M
     var mod_platform: *std.Build.Module = undefined;
     switch (options.platform_renderer) {
         .sdl_soft => {
-            const sdl_sdk = sdl.init(b, "");
+            const sdl_sdk = sdl.init(b, .{});
             // SDL platform module
             mod_platform = b.createModule(.{
                 .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl_soft.zig") },
@@ -49,7 +49,7 @@ fn getPlatformModule(b: *std.Build, options: PlatformCreateOptions) *std.Build.M
             mod_platform.addImport("sdl", sdl_sdk.getNativeModule());
         },
         .sdl => {
-            const sdl_sdk = sdl.init(b, "");
+            const sdl_sdk = sdl.init(b, .{});
             // SDL platform module
             mod_platform = b.createModule(.{
                 .root_source_file = .{ .cwd_relative = sdkPath("/src/zimpact/platform_sdl.zig") },
@@ -99,14 +99,14 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const platform = b.option([]const u8, "platform", "Plaftorm to use: sdl, sdl_soft or sokol") orelse "sdl";
     var platform_renderer: PlatformAndRenderer = .sdl;
-    if (target.result.isWasm()) {
+    if (target.result.cpu.arch.isWasm()) {
         platform_renderer = .sdl;
     } else if (std.mem.eql(u8, platform, "sokol")) {
         platform_renderer = .sokol;
     } else if (std.mem.eql(u8, platform, "sdl_soft")) {
         platform_renderer = .sdl_soft;
     }
-    const sdl_sdk = sdl.init(b, null);
+    const sdl_sdk = sdl.init(b, .{});
 
     _ = getZimpactModule(b, .{
         .optimize = optimize,
@@ -138,7 +138,7 @@ pub fn build(b: *std.Build) !void {
 
     // build Z Drop sample
     const sample: []const u8 = "zdrop";
-    if (!target.result.isWasm()) {
+    if (!target.result.cpu.arch.isWasm()) {
         // for native platforms, build into a regular executable
         const exe = b.addExecutable(.{
             .name = sample,
@@ -147,7 +147,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         });
         if (platform_renderer == .sdl or platform_renderer == .sdl_soft) {
-            sdl_sdk.link(exe, .dynamic);
+            sdl_sdk.link(exe, .dynamic, sdl.Library.SDL2);
         }
         exe.root_module.addImport("zimpact", mod_zi);
         const install_exe = b.addInstallArtifact(exe, .{});
@@ -216,7 +216,7 @@ pub fn buildWeb(b: *std.Build, options: BuildWebOptions) !void {
         .use_webgl2 = true,
         .use_emmalloc = true,
         .use_filesystem = true,
-        .shell_file_path = sdkPath("/web/shell.html"),
+        .shell_file_path = b.path(sdkPath("/web/shell.html")),
         .extra_args = &.{ "-sUSE_OFFSET_CONVERTER=1", "--preload-file", "zig-out/bin/assets@assets" },
     });
     // ...and a special run step to start the web build output via 'emrun'
@@ -230,7 +230,7 @@ pub fn buildAssets(b: *std.Build, asset_dir: []const u8) !*std.Build.Step {
     // build qoiconv executable
     const qoiconv_exe = b.addExecutable(.{
         .name = "qoiconv",
-        .target = b.host,
+        .target = b.graph.host,
         .optimize = .ReleaseFast,
     });
     qoiconv_exe.linkLibC();
@@ -245,7 +245,7 @@ pub fn buildAssets(b: *std.Build, asset_dir: []const u8) !*std.Build.Step {
     // build qoaconv executable
     const qoaconv_exe = b.addExecutable(.{
         .name = "qoaconv",
-        .target = b.host,
+        .target = b.graph.host,
         .optimize = .ReleaseFast,
     });
     qoaconv_exe.linkLibC();

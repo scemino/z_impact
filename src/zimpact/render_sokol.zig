@@ -72,7 +72,10 @@ pub fn init() void {
 
     bindings.vertex_buffers[0] = sg.makeBuffer(.{
         .size = @sizeOf(Vertex) * options.options.RENDER_BUFFER_CAPACITY * 4,
-        .usage = sg.Usage.STREAM,
+        .usage = .{
+            .vertex_buffer = true,
+            .stream_update = true,
+        },
         .label = "quad-vertices",
     });
 
@@ -91,13 +94,13 @@ pub fn init() void {
     }
 
     bindings.index_buffer = sg.makeBuffer(.{
-        .type = sg.BufferType.INDEXBUFFER,
+        .usage = .{ .index_buffer = true },
         .data = sg.asRange(index_buffer[0..]),
         .label = "quad-indices",
     });
 
     // create a sampler object with default attributes
-    bindings.fs.samplers[shd.SLOT_smp] = sg.makeSampler(.{
+    bindings.samplers[shd.SMP_smp] = sg.makeSampler(.{
         .min_filter = sg.Filter.LINEAR,
         .mag_filter = sg.Filter.NEAREST,
         .wrap_u = sg.Wrap.CLAMP_TO_EDGE,
@@ -110,9 +113,9 @@ pub fn init() void {
         .shader = sg.makeShader(shd.sglShaderDesc(sg.queryBackend())),
         .index_type = sg.IndexType.UINT16,
     };
-    desc.layout.attrs[shd.ATTR_vs_position].format = sg.VertexFormat.FLOAT2;
-    desc.layout.attrs[shd.ATTR_vs_texcoord0].format = sg.VertexFormat.FLOAT2;
-    desc.layout.attrs[shd.ATTR_vs_color0].format = sg.VertexFormat.UBYTE4N;
+    desc.layout.attrs[shd.ATTR_sgl_position].format = sg.VertexFormat.FLOAT2;
+    desc.layout.attrs[shd.ATTR_sgl_texcoord0].format = sg.VertexFormat.FLOAT2;
+    desc.layout.attrs[shd.ATTR_sgl_color0].format = sg.VertexFormat.UBYTE4N;
     desc.colors[0].blend = .{
         .enabled = true,
         .src_factor_rgb = sg.BlendFactor.SRC_ALPHA,
@@ -164,7 +167,7 @@ pub fn frameEnd() void {
     sg.beginPass(.{ .action = pass_action, .swapchain = sglue.swapchain() });
     sg.applyViewportf(dx, dy, dw, dh, true);
     sg.applyPipeline(pip);
-    sg.applyUniforms(sg.ShaderStage.VS, shd.SLOT_vs_params, sg.asRange(&vs_params));
+    sg.applyUniforms(shd.UB_vs_params, sg.asRange(&vs_params));
     flush();
     sg.endPass();
     sg.commit();
@@ -237,7 +240,7 @@ fn flush() void {
     var i: usize = 0;
     var j: usize = 0;
     while (i < tex_buffer_len) : (i += 1) {
-        bindings.fs.images[shd.SLOT_tex] = tex_buffer[i];
+        bindings.images[shd.IMG_tex] = tex_buffer[i];
         sg.applyBindings(bindings);
         sg.draw(@intCast(j), 6, 1);
         j += 6;
@@ -339,7 +342,7 @@ pub fn initTexture(size: Vec2i, pixels: []const Rgba) Texture {
         .width = size.x,
         .height = size.y,
         .pixel_format = .RGBA8,
-        .usage = .STREAM,
+        .usage = .{ .stream_update = true },
     });
     var img_data = sg.ImageData{};
     img_data.subimage[0][0] = sg.asRange(pixels);

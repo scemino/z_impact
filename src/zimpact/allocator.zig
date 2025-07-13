@@ -56,11 +56,12 @@ pub const BumpAllocator = struct {
                 .alloc = alloc,
                 .resize = resize,
                 .free = free,
+                .remap = remap,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         _ = ctx;
         _ = log2_ptr_align;
         _ = ret_addr;
@@ -71,20 +72,29 @@ pub const BumpAllocator = struct {
         return hunk[bump_len - size .. bump_len].ptr;
     }
 
-    fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: std.mem.Alignment, ret_addr: usize) void {
         _ = ctx;
         _ = old_mem;
         _ = log2_old_align_u8;
         _ = ret_addr;
     }
 
-    fn resize(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, new_size: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: std.mem.Alignment, new_size: usize, ret_addr: usize) bool {
         _ = ctx;
         _ = old_mem;
         _ = log2_old_align_u8;
         _ = new_size;
         _ = ret_addr;
         return false;
+    }
+
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        _ = ctx;
+        _ = memory;
+        _ = alignment;
+        _ = new_len;
+        _ = ret_addr;
+        return null;
     }
 };
 
@@ -96,11 +106,12 @@ pub const TempAllocator = struct {
                 .alloc = alloc,
                 .resize = resize,
                 .free = free,
+                .remap = remap,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         _ = ctx;
         _ = log2_ptr_align;
         _ = ret_addr;
@@ -111,7 +122,7 @@ pub const TempAllocator = struct {
         return hunk[options.ALLOC_SIZE - temp_len ..].ptr;
     }
 
-    fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: std.mem.Alignment, ret_addr: usize) void {
         _ = ctx;
         _ = log2_old_align_u8;
         _ = ret_addr;
@@ -136,13 +147,22 @@ pub const TempAllocator = struct {
         temp_len = remaining_max;
     }
 
-    fn resize(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: u8, new_size: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, old_mem: []u8, log2_old_align_u8: std.mem.Alignment, new_size: usize, ret_addr: usize) bool {
         _ = ctx;
         _ = old_mem;
         _ = log2_old_align_u8;
         _ = new_size;
         _ = ret_addr;
         return false;
+    }
+
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        _ = ctx;
+        _ = memory;
+        _ = alignment;
+        _ = new_len;
+        _ = ret_addr;
+        return null;
     }
 };
 

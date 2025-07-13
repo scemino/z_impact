@@ -281,7 +281,7 @@ pub fn initTexture(size: Vec2i, pixels: []const Rgba) Texture {
     textures[texture.textures_len].pixels = alloc.bumpAlloc(Rgba, @intCast(size.x * size.y)) catch @panic("failed to alloc");
     @memcpy(textures[texture.textures_len].pixels, pixels);
 
-    const texture_handle = .{ .index = texture.textures_len };
+    const texture_handle: Texture = .{ .index = texture.textures_len };
     texture.textures_len += 1;
     return texture_handle;
 }
